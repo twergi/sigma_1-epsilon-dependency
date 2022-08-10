@@ -11,6 +11,7 @@ import os
 import psutil
 process = psutil.Process(os.getpid())
 
+# this function reads csv
 def read_csv(file_name, graph_key, sigma3, dic_init, dic_alt):
     # Reads csv and pastes graph_name in dic, then calls split_graph
     
