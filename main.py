@@ -624,5 +624,5 @@ while True:
     redraw_graph(graphs_altered, graphs_created)
     if process.memory_info().rss/1024 ** 2 - memory_initial > 100:
         sg.popup('RAM usage is high. It is recommended to restart the program')
-
+# First edit
 window.close()
