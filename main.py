@@ -11,6 +11,10 @@ import psutil
 process = psutil.Process(os.getpid())
 
 
+def float_comma(string):
+    return float(string.replace(',', '.'))
+
+
 def read_csv(file_name, graph_key, sigma3, dic_init, dic_alt):
     # Reads csv and pastes graph_name in dic, then calls split_graph
 
@@ -28,8 +32,8 @@ def read_csv(file_name, graph_key, sigma3, dic_init, dic_alt):
         }
 
         for row in file:
-            dic_init[graph_key]['x'].append(float(row[1].replace(',', '.')))
-            dic_init[graph_key]['y'].append(float(row[0].replace(',', '.')))
+            dic_init[graph_key]['x'].append(float_comma(row[1]))
+            dic_init[graph_key]['y'].append(float_comma(row[0]))
 
         dic_init[graph_key]['sigma1_max'] = max(dic_init[graph_key]['y'])
         dic_init[graph_key]['sigma1_init'] = min(dic_init[graph_key]['y'])
@@ -278,11 +282,11 @@ def browse_window():
             # If everything is ok check if sigma3 is float, then reads csv and adds graph to dic graphs
             else:
                 try:
-                    float(values_2['-sigma3-'])
+                    float_comma(values_2['-sigma3-'])
                 except ValueError:
                     sg.popup('Wrong \u03C33')
                     continue
-                read_csv(values_2['-file-'], values_2['-graphname-'], float(values_2['-sigma3-']), graphs, graphs_altered)
+                read_csv(values_2['-file-'], values_2['-graphname-'], float_comma(values_2['-sigma3-']), graphs, graphs_altered)
                 split_graph(values_2['-graphname-'], graphs, graphs_altered)
                 break
 
@@ -345,32 +349,32 @@ def configure_window(graph_key, dic, dic_alt):
 
         if event_3 == 'OK':
             try:
-                float(values_3['-sigma3-'])
-                float(values_3['-Rf-'])
-                float(values_3['-sigma1_max-'])
-                float(values_3['-sigma1_init-'])
+                float_comma(values_3['-sigma3-'])
+                float_comma(values_3['-Rf-'])
+                float_comma(values_3['-sigma1_max-'])
+                float_comma(values_3['-sigma1_init-'])
             except ValueError:
                 sg.popup('Invalid data type')
                 continue
-            if float(values_3['-Rf-']) <= 0 or float(values_3['-Rf-']) > 1:
+            if float_comma(values_3['-Rf-']) <= 0 or float_comma(values_3['-Rf-']) > 1:
                 sg.popup('Invalid Rf')
                 continue
 
-            elif float(values_3['-sigma1_max-']) <= 0 or float(values_3['-sigma1_max-']) > max(dic[graph_key]['y']):
+            elif float_comma(values_3['-sigma1_max-']) <= 0 or float_comma(values_3['-sigma1_max-']) > max(dic[graph_key]['y']):
                 sg.popup('Invalid \u03C31_max')
                 continue
 
-            elif float(values_3['-sigma1_init-']) > max(dic[graph_key]['y']) or float(values_3['-sigma1_init-']) < min(dic[graph_key]['y']):
+            elif float_comma(values_3['-sigma1_init-']) > max(dic[graph_key]['y']) or float_comma(values_3['-sigma1_init-']) < min(dic[graph_key]['y']):
                 sg.popup('Invalid \u03C31_initial')
                 continue
 
             else:
-                dic[graph_key]['Rf'] = float(values_3['-Rf-'])
-                dic[graph_key]['sigma3'] = float(values_3['-sigma3-'])
-                dic[graph_key]['sigma1_max'] = float(values_3['-sigma1_max-'])
+                dic[graph_key]['Rf'] = float_comma(values_3['-Rf-'])
+                dic[graph_key]['sigma3'] = float_comma(values_3['-sigma3-'])
+                dic[graph_key]['sigma1_max'] = float_comma(values_3['-sigma1_max-'])
                 dic_alt[f'{graph_key}_1']['color'] = dic[graph_key]['color']
-                if float(values_3['-sigma1_init-']) != dic[graph_key]['sigma1_init']:
-                    cut_graph(graph_key, dic, dic_alt, float(values_3['-sigma1_init-']))
+                if float_comma(values_3['-sigma1_init-']) != dic[graph_key]['sigma1_init']:
+                    cut_graph(graph_key, dic, dic_alt, float_comma(values_3['-sigma1_init-']))
                 break
 
     configure.close()
@@ -399,19 +403,19 @@ def add_graph(dic_cr, dic_alt, dic_init):
                 continue
             else:
                 try:
-                    float(values_5['-sigma3-'])
-                    float(values_5['-Rf-'])
+                    float_comma(values_5['-sigma3-'])
+                    float_comma(values_5['-Rf-'])
                 except ValueError:
                     sg.popup('Wrong data type')
                     continue
                 graph_1 = list(dic_init)[0]
                 p_ref = dic_init[graph_1]['sigma3']
                 E50_ref = dic_alt[f'{graph_1}_1']['E50']['sigma1'] / dic_alt[f'{graph_1}_1']['E50']['epsilon']
-                sigma3 = float(values_5['-sigma3-'])
+                sigma3 = float_comma(values_5['-sigma3-'])
                 E50 = E50_ref * (
                     (value_c * cos(radians(value_phi)) + sigma3 * sin(radians(value_phi))) / (value_c * cos(radians(value_phi)) + p_ref * sin(radians(value_phi)))
                 ) ** m
-                Rf = float(values_5['-Rf-'])
+                Rf = float_comma(values_5['-Rf-'])
                 q_f = (value_c / tan(radians(value_phi)) + sigma3) * 2 * sin(radians(value_phi)) / (1 - sin(radians(value_phi)))
                 q_a = q_f / Rf
                 E_i = 2 * E50 / (2 - Rf)
@@ -463,13 +467,13 @@ def configure_c_phi():
                 continue
             else:
                 try:
-                    float(values_4['-phi-'])
-                    float(values_4['-c-'])
-                except:
+                    float_comma(values_4['-phi-'])
+                    float_comma(values_4['-c-'])
+                except ValueError:
                     sg.popup('Wrong \u03C6 or c')
                     continue
-                value_phi = float(values_4['-phi-'])
-                value_c = float(values_4['-c-'])
+                value_phi = float_comma(values_4['-phi-'])
+                value_c = float_comma(values_4['-c-'])
                 break
         if event_4 in [sg.WIN_CLOSED, 'Cancel']:
             break
