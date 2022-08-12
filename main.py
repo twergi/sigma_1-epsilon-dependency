@@ -6,47 +6,48 @@ from json import dump, load
 from random import randrange
 from math import tan, radians, log, cos, sin
 from os import path
-
 import os
 import psutil
 process = psutil.Process(os.getpid())
 
+
 def read_csv(file_name, graph_key, sigma3, dic_init, dic_alt):
     # Reads csv and pastes graph_name in dic, then calls split_graph
-    
+
     with open(file_name) as csvfile:
         file = reader(csvfile, delimiter=';')
         dic_init[graph_key] = {
-            'x':[],
-            'y':[],
-            'sigma3':sigma3,
-            'Rf':0.95,
-            'checkbox_sigma1':1,
-            'checkbox_E50':0,
-            'color':f"#{randrange(0, 230, 1):02x}{randrange(0, 230, 1):02x}{randrange(0, 230, 1):02x}",
-            'sigma1_init':0.0
+            'x': [],
+            'y': [],
+            'sigma3': sigma3,
+            'Rf': 0.95,
+            'checkbox_sigma1': 1,
+            'checkbox_E50': 0,
+            'color': f"#{randrange(0, 230, 1):02x}{randrange(0, 230, 1):02x}{randrange(0, 230, 1):02x}",
+            'sigma1_init': 0.0
         }
-        
+
         for row in file:
-            dic_init[graph_key]['x'].append(float(row[1].replace(',','.')))
-            dic_init[graph_key]['y'].append(float(row[0].replace(',','.')))
-        
+            dic_init[graph_key]['x'].append(float(row[1].replace(',', '.')))
+            dic_init[graph_key]['y'].append(float(row[0].replace(',', '.')))
+
         dic_init[graph_key]['sigma1_max'] = max(dic_init[graph_key]['y'])
         dic_init[graph_key]['sigma1_init'] = min(dic_init[graph_key]['y'])
         dic_init[graph_key]['epsilon_init'] = min(dic_init[graph_key]['x'])
         dic_alt[f'{graph_key}_1'] = {
-            'x':[],
-            'y':[],
-            'E50':{'sigma1':0, 'epsilon':0},
-            'checkbox_sigma1':1,
-            'checkbox_E50':0,
-            'color':dic_init[graph_key]['color'],
+            'x': [],
+            'y': [],
+            'E50': {'sigma1': 0, 'epsilon': 0},
+            'checkbox_sigma1': 1,
+            'checkbox_E50': 0,
+            'color': dic_init[graph_key]['color'],
         }
         dic_alt[f'{graph_key}_2'] = {
-            'x':[],
-            'y':[],
-            'checkbox_sigma1':1
+            'x': [],
+            'y': [],
+            'checkbox_sigma1': 1
         }
+
 
 def reopen():
     # Closes and opens main window
@@ -56,22 +57,23 @@ def reopen():
     layout = update_mainlayout(graphs, graphs_altered, graphs_created)
     window = sg.Window("Demo", layout, location=loc, element_padding=1)
 
+
 def redraw_graph(dic, dic_cr):
     # Clears pyplot window and redraws all graphs in dic
-    
+
     axes.clear()
     for graph_key in dic:
         if dic[graph_key]['checkbox_sigma1'] == 1:
             # Makes graphs 'tail' gray
             if graph_key[-2:] == '_2':
                 axes.plot(dic[graph_key]['x'], dic[graph_key]['y'], linestyle='--', color='gray')
-            
+
             else:
                 axes.plot(
                     dic[graph_key]['x'],
                     dic[graph_key]['y'],
                     marker='.',
-                    color = dic[graph_key]['color'],
+                    color=dic[graph_key]['color'],
                     label=graph_key[:-2]
                 )
         if graph_key[-2:] == '_1' and dic[graph_key]['checkbox_E50'] == 1:
@@ -87,7 +89,7 @@ def redraw_graph(dic, dic_cr):
             )
     for graph_key in dic_cr:
         y = linspace(0, dic_cr[graph_key]['q_f'], 100)
-        x = (1/dic_cr[graph_key]['E_i']) * y / (1-y/(dic_cr[graph_key]['q_a']))
+        x = (1 / dic_cr[graph_key]['E_i']) * y / (1 - y / (dic_cr[graph_key]['q_a']))
         axes.plot(x, y, label=graph_key, linestyle='--')
 
     axes.set_xlabel('\u03B5')
@@ -97,21 +99,23 @@ def redraw_graph(dic, dic_cr):
     axes.legend()
     axes.grid(True)
 
+
 def plot_graph(dic, graph_key):
     # Draws single graph from dic
-    
+
     axes.clear()
     axes.plot(
         dic['x'],
         dic['y'],
         label=graph_key,
         marker='.',
-        color = dic['color']
+        color=dic['color']
     )
     axes.set_xlabel('\u03B5')
     axes.set_ylabel('\u03C31 [kPa]')
     axes.legend()
     axes.grid(True)
+
 
 def update_mainlayout(dic, dic_alt, dic_cr):
     # Updates layout of main window
@@ -123,42 +127,42 @@ def update_mainlayout(dic, dic_alt, dic_cr):
         sigma3_2 = dic[graph_2]['sigma3']
         E50_1 = dic_alt[f'{graph_1}_1']['E50']['sigma1'] / dic_alt[f'{graph_1}_1']['E50']['epsilon']
         E50_2 = dic_alt[f'{graph_2}_1']['E50']['sigma1'] / dic_alt[f'{graph_2}_1']['E50']['epsilon']
-        m = - log(E50_2/E50_1) / log((sigma3_1 + value_c * 1/tan(radians(value_phi)))/(sigma3_2 + value_c * 1/tan(radians(value_phi))))
+        m = - log(E50_2 / E50_1) / log((sigma3_1 + value_c * 1 / tan(radians(value_phi))) / (sigma3_2 + value_c * 1 / tan(radians(value_phi))))
         m = round(m, 3)
-    layout =  [[
-            sg.Button('Browse files'),
-            sg.Button('Plot'),
+    layout = [[
+        sg.Button('Browse files'),
+        sg.Button('Plot'),
+        sg.Push(),
+        sg.VSeparator(),
+        sg.Text(text=f'\u03C6={value_phi} [°]'),
+        sg.Text(text=f'c={value_c} [kPa]'),
+        sg.Button('Configure', key='-c_and_phi-')
+    ],
+        [sg.HSeparator(), sg.Text(f'm={m}'), sg.HSeparator()],
+        [[
+            sg.Text(i),
+            sg.Text(f"\u03C33 = {dic[i]['sigma3']} [kPa]"),
+            sg.Text(f"E50 = {round(dic_alt[str(i)+str('_1')]['E50']['sigma1']/dic_alt[str(i)+str('_1')]['E50']['epsilon'], 2)} [kPa]"),
             sg.Push(),
-            sg.VSeparator(),
-            sg.Text(text=f'\u03C6={value_phi} [°]'),
-            sg.Text(text=f'c={value_c} [kPa]'),
-            sg.Button('Configure', key='-c_and_phi-')
-            ],
-            [sg.HSeparator(), sg.Text(f'm={m}'), sg.HSeparator()],
-            [[
-                sg.Text(i),
-                sg.Text(f"\u03C33 = {dic[i]['sigma3']} [kPa]"),
-                sg.Text(f"E50 = {round(dic_alt[str(i)+str('_1')]['E50']['sigma1']/dic_alt[str(i)+str('_1')]['E50']['epsilon'], 2)} [kPa]"),
-                sg.Push(),
-                sg.Checkbox(key=f'{i}_checkbox_sigma1', enable_events=True, text='\u03C31', default=(dic[i]['checkbox_sigma1'])),
-                sg.Checkbox(key=f'{i}_checkbox_E50', enable_events=True, text='E50', default=(dic[i]['checkbox_E50'])),
-                sg.Button('Configure', key=i)
-            ] for i in dic],
-            [sg.VPush()],
-            [sg.HSeparator()],
-            [
-                sg.Input(key='SaveAs', visible=False, enable_events=True),
-                sg.FileSaveAs(
-                    button_text='Save',
-                    file_types=(('TXT files', '*.txt'),)
-                    ),
-                sg.Input(key='Load', visible=False, enable_events=True),
-                sg.FileBrowse(
-                    button_text='Load',
-                    file_types=(('TXT files', '*.txt'),),
-                    ),
-                sg.Push(),
-                sg.Button('Exit')]]
+            sg.Checkbox(key=f'{i}_checkbox_sigma1', enable_events=True, text='\u03C31', default=(dic[i]['checkbox_sigma1'])),
+            sg.Checkbox(key=f'{i}_checkbox_E50', enable_events=True, text='E50', default=(dic[i]['checkbox_E50'])),
+            sg.Button('Configure', key=i)
+        ] for i in dic],
+        [sg.VPush()],
+        [sg.HSeparator()],
+        [
+        sg.Input(key='SaveAs', visible=False, enable_events=True),
+        sg.FileSaveAs(
+            button_text='Save',
+            file_types=(('TXT files', '*.txt'),)
+        ),
+        sg.Input(key='Load', visible=False, enable_events=True),
+        sg.FileBrowse(
+            button_text='Load',
+            file_types=(('TXT files', '*.txt'),),
+        ),
+        sg.Push(),
+        sg.Button('Exit')]]
     if len(dic) > 2:
         layout[2][2].insert(2, [sg.HSeparator()])
     if len(dic) >= 2:
@@ -177,47 +181,49 @@ def update_mainlayout(dic, dic_alt, dic_cr):
             ])
     return layout
 
+
 def split_graph(graph_key, dic_init, dic_alt):
     # Splits dic_init in break point (sigma_max * Rf) and adds obtained graphs in dic_alt
-    
+
     break_y = dic_init[graph_key]['sigma1_max'] * dic_init[graph_key]['Rf']
-    
+
     for i in range(len(dic_init[graph_key]['y'])):
         # Adds sigma1 and epsilon of E50
-        if dic_init[graph_key]['y'][i] >= break_y / 2 and dic_init[graph_key]['y'][i-1] < break_y / 2:
+        if dic_init[graph_key]['y'][i] >= break_y / 2 and dic_init[graph_key]['y'][i - 1] < break_y / 2:
             dic_alt[f'{graph_key}_1']['E50']['sigma1'] = break_y / 2
-            dic_alt[f'{graph_key}_1']['E50']['epsilon'] = interp(break_y/2, dic_init[graph_key]['y'][i-1:i+1], dic_init[graph_key]['x'][i-1:i+1])
-        
+            dic_alt[f'{graph_key}_1']['E50']['epsilon'] = interp(break_y / 2, dic_init[graph_key]['y'][i - 1:i + 1], dic_init[graph_key]['x'][i - 1:i + 1])
+
         # Creates break point and splits graphs
         if dic_init[graph_key]['y'][i] >= break_y:
             dic_alt[f'{graph_key}_1']['y'] = dic_init[graph_key]['y'][:i]
             dic_alt[f'{graph_key}_1']['y'].append(break_y)
             dic_alt[f'{graph_key}_1']['y'].append(break_y)
             dic_alt[f'{graph_key}_1']['x'] = dic_init[graph_key]['x'][:i]
-            dic_alt[f'{graph_key}_1']['x'].append(interp(break_y, dic_init[graph_key]['y'][i-1:i+1], dic_init[graph_key]['x'][i-1:i+1]))
+            dic_alt[f'{graph_key}_1']['x'].append(interp(break_y, dic_init[graph_key]['y'][i - 1:i + 1], dic_init[graph_key]['x'][i - 1:i + 1]))
             dic_alt[f'{graph_key}_1']['x'].append(dic_init[graph_key]['x'][-1])
 
             dic_alt[f'{graph_key}_2']['y'] = dic_init[graph_key]['y'][i:]
             dic_alt[f'{graph_key}_2']['y'].insert(0, break_y)
             dic_alt[f'{graph_key}_2']['x'] = dic_init[graph_key]['x'][i:]
-            dic_alt[f'{graph_key}_2']['x'].insert(0, interp(break_y, dic_init[graph_key]['y'][i-1:i+1], dic_init[graph_key]['x'][i-1:i+1]))
-            
+            dic_alt[f'{graph_key}_2']['x'].insert(0, interp(break_y, dic_init[graph_key]['y'][i - 1:i + 1], dic_init[graph_key]['x'][i - 1:i + 1]))
+
             break
+
 
 def cut_graph(graph_key, dic_init, dic_alt, sigma1_init):
     for i in range(len(dic_init[graph_key]['y'])):
         if dic_init[graph_key]['y'][i] >= sigma1_init:
-            epsilon_init = interp(sigma1_init, dic_init[graph_key]['y'][i-1:i+1], dic_init[graph_key]['x'][i-1:i+1])
+            epsilon_init = interp(sigma1_init, dic_init[graph_key]['y'][i - 1:i + 1], dic_init[graph_key]['x'][i - 1:i + 1])
             break
-    
+
     for i in range(len(dic_init[graph_key]['y'])):
         dic_init[graph_key]['y'][i] += dic_init[graph_key]['sigma1_init'] - sigma1_init
         dic_init[graph_key]['x'][i] += dic_init[graph_key]['epsilon_init'] - epsilon_init
-    
+
     for i in range(len(dic_alt[f'{graph_key}_1']['y'])):
         dic_alt[f'{graph_key}_1']['y'][i] += dic_init[graph_key]['sigma1_init'] - sigma1_init
         dic_alt[f'{graph_key}_1']['x'][i] += dic_init[graph_key]['epsilon_init'] - epsilon_init
-    
+
     for i in range(len(dic_alt[f'{graph_key}_2']['y'])):
         dic_alt[f'{graph_key}_2']['y'][i] += dic_init[graph_key]['sigma1_init'] - sigma1_init
         dic_alt[f'{graph_key}_2']['x'][i] += dic_init[graph_key]['epsilon_init'] - epsilon_init
@@ -225,6 +231,7 @@ def cut_graph(graph_key, dic_init, dic_alt, sigma1_init):
     dic_init[graph_key]['sigma1_max'] += dic_init[graph_key]['sigma1_init'] - sigma1_init
     dic_init[graph_key]['sigma1_init'] = sigma1_init
     dic_init[graph_key]['epsilon_init'] = epsilon_init
+
 
 def browse_window():
     # Create the window
@@ -235,67 +242,61 @@ def browse_window():
                 sg.In(size=(20, 1), key='-file-'),
                 sg.FileBrowse(
                     file_types=(('CSV files', '*.csv'),)
-                    )
+                )
             ],
             [sg.Column([
                 [sg.Text('Enter graph name')],
                 [sg.Input(key='-graphname-', size=(20, 1))]
-                ]),
-            sg.Column([
-                [sg.Text('\u03C33 [kPa]')],
-                [sg.Input(key='-sigma3-', size=(20, 1))]])
+            ]),
+                sg.Column([
+                    [sg.Text('\u03C33 [kPa]')],
+                    [sg.Input(key='-sigma3-', size=(20, 1))]])
             ],
             [sg.Button('OK', bind_return_key=True), sg.Button('Cancel')]
-            ])
-    
+        ])
+
     # Create event loop
     while True:
         event_2, values_2 = browse_files.read()
-        print(event_2)
         # When user presses OK button
         if event_2 == 'OK':
             # Checks path
-            if (
-                values_2['-file-'] == '' or
-                not path.exists(values_2['-file-'])
-            ):
+            if values_2['-file-'] == '' or not path.exists(values_2['-file-']):
                 sg.popup('Wrong path')
                 continue
-            
+
             # Checks graph name
-            elif (
-                values_2['-graphname-'] in ['Browse files', 'Exit', 'Update', 'SaveAs', 'Load'] or
-                values_2['-graphname-'] == ''
-            ):
+            elif values_2['-graphname-'] in ['Browse files', 'Exit', 'Update', 'SaveAs', 'Load'] or values_2['-graphname-'] == '':
                 sg.popup('Wrong graph name')
                 continue
-            
+
             # Checks sigma
             elif values_2['-sigma3-'] == '':
                 sg.popup('Wrong \u03C33')
                 continue
-            
+
             # If everything is ok check if sigma3 is float, then reads csv and adds graph to dic graphs
             else:
                 try:
                     float(values_2['-sigma3-'])
-                except:
+                except ValueError:
                     sg.popup('Wrong \u03C33')
                     continue
                 read_csv(values_2['-file-'], values_2['-graphname-'], float(values_2['-sigma3-']), graphs, graphs_altered)
                 split_graph(values_2['-graphname-'], graphs, graphs_altered)
                 break
-        
+
         # Closes window when window is closed or user presses Cancel button
         if event_2 in [sg.WIN_CLOSED, 'Cancel']:
             break
-    
+
     # Closes window
     browse_files.close()
 
+
 def configure_window(graph_key, dic, dic_alt):
     # Opens window to configure each graph
-    
+
     layout = [
         [
             sg.Input(default_text=dic[graph_key]['color'], key='-color-', disabled=True, size=(10, 1), enable_events=True, text_color='#303030'),
@@ -309,14 +310,14 @@ def configure_window(graph_key, dic, dic_alt):
                 [sg.Text('\u03C31_initial')],
                 [sg.Text('Rf')]
             ]),
-        
+
             sg.Column([
                 [sg.Input(default_text=dic[graph_key]['sigma3'], key='-sigma3-', size=(10, 1))],
                 [sg.Input(default_text=dic[graph_key]['sigma1_max'], key='-sigma1_max-', size=(10, 1))],
                 [sg.Input(default_text=dic[graph_key]['sigma1_init'], key='-sigma1_init-', size=(10, 1))],
                 [sg.Input(default_text=dic[graph_key]['Rf'], key='-Rf-', size=(10, 1))]
             ]),
-        
+
             sg.Column([
                 [sg.Text('[kPa]')],
                 [sg.Text('[kPa]')],
@@ -324,20 +325,20 @@ def configure_window(graph_key, dic, dic_alt):
                 [sg.Text('[-]')]
             ])
         ],
-        
+
         [sg.Button('OK', bind_return_key=True), sg.Button('Cancel')]
-        ]
-    
+    ]
+
     configure = sg.Window(f'Configure {graph_key}', layout, resizable=True, grab_anywhere=True)
     plot_graph(dic[graph_key], graph_key)
-    
+
     while True:
         event_3, values_3 = configure.read()
-        
+
         if event_3 == sg.WIN_CLOSED or event_3 == 'Cancel':
             dic[graph_key]['color'] = dic_alt[f'{graph_key}_1']['color']
             break
-        
+
         if event_3 == '-color-':
             dic[graph_key]['color'] = values_3['-color-']
             plot_graph(dic[graph_key], graph_key)
@@ -348,27 +349,18 @@ def configure_window(graph_key, dic, dic_alt):
                 float(values_3['-Rf-'])
                 float(values_3['-sigma1_max-'])
                 float(values_3['-sigma1_init-'])
-            except:
+            except ValueError:
                 sg.popup('Invalid data type')
                 continue
-            if (
-                float(values_3['-Rf-']) <= 0 or
-                float(values_3['-Rf-']) > 1
-            ):
+            if float(values_3['-Rf-']) <= 0 or float(values_3['-Rf-']) > 1:
                 sg.popup('Invalid Rf')
                 continue
-            
-            elif (
-                float(values_3['-sigma1_max-']) <= 0 or
-                float(values_3['-sigma1_max-']) > max(dic[graph_key]['y'])
-            ):
+
+            elif float(values_3['-sigma1_max-']) <= 0 or float(values_3['-sigma1_max-']) > max(dic[graph_key]['y']):
                 sg.popup('Invalid \u03C31_max')
                 continue
-            
-            elif (
-                float(values_3['-sigma1_init-']) > max(dic[graph_key]['y']) or
-                float(values_3['-sigma1_init-']) < min(dic[graph_key]['y'])
-            ):
+
+            elif float(values_3['-sigma1_init-']) > max(dic[graph_key]['y']) or float(values_3['-sigma1_init-']) < min(dic[graph_key]['y']):
                 sg.popup('Invalid \u03C31_initial')
                 continue
 
@@ -380,8 +372,9 @@ def configure_window(graph_key, dic, dic_alt):
                 if float(values_3['-sigma1_init-']) != dic[graph_key]['sigma1_init']:
                     cut_graph(graph_key, dic, dic_alt, float(values_3['-sigma1_init-']))
                 break
-    
+
     configure.close()
+
 
 def add_graph(dic_cr, dic_alt, dic_init):
     layout = [
@@ -408,7 +401,7 @@ def add_graph(dic_cr, dic_alt, dic_init):
                 try:
                     float(values_5['-sigma3-'])
                     float(values_5['-Rf-'])
-                except:
+                except ValueError:
                     sg.popup('Wrong data type')
                     continue
                 graph_1 = list(dic_init)[0]
@@ -416,25 +409,26 @@ def add_graph(dic_cr, dic_alt, dic_init):
                 E50_ref = dic_alt[f'{graph_1}_1']['E50']['sigma1'] / dic_alt[f'{graph_1}_1']['E50']['epsilon']
                 sigma3 = float(values_5['-sigma3-'])
                 E50 = E50_ref * (
-                    ( value_c * cos(radians(value_phi)) + sigma3 * sin(radians(value_phi)) ) / ( value_c * cos(radians(value_phi)) + p_ref * sin(radians(value_phi)) )
+                    (value_c * cos(radians(value_phi)) + sigma3 * sin(radians(value_phi))) / (value_c * cos(radians(value_phi)) + p_ref * sin(radians(value_phi)))
                 ) ** m
                 Rf = float(values_5['-Rf-'])
-                q_f = ( value_c / tan(radians(value_phi)) + sigma3 ) * 2 * sin(radians(value_phi)) / ( 1 - sin(radians(value_phi)) )
+                q_f = (value_c / tan(radians(value_phi)) + sigma3) * 2 * sin(radians(value_phi)) / (1 - sin(radians(value_phi)))
                 q_a = q_f / Rf
-                E_i = 2 * E50 / ( 2 - Rf )
+                E_i = 2 * E50 / (2 - Rf)
                 dic_cr[values_5['-graph_name-']] = {
-                    'Rf':Rf,
-                    'sigma3':sigma3,
-                    'E50':E50,
-                    'q_f':q_f,
-                    'q_a':q_a,
-                    'E_i':E_i
+                    'Rf': Rf,
+                    'sigma3': sigma3,
+                    'E50': E50,
+                    'q_f': q_f,
+                    'q_a': q_a,
+                    'E_i': E_i
                 }
                 break
-        
+
         if event_5 == 'Cancel' or event_5 == sg.WIN_CLOSED():
             break
     add_window.close()
+
 
 def configure_c_phi():
     global value_phi, value_c
@@ -481,11 +475,13 @@ def configure_c_phi():
             break
     configuration.close()
 
+
 def save_file(file_name):
     # Saves all data in save file
-    s_f = {'graphs':graphs, 'graphs_altered':graphs_altered, 'value_phi': value_phi, 'value_c':value_c, 'm':m, 'graphs_created':graphs_created}
+    s_f = {'graphs': graphs, 'graphs_altered': graphs_altered, 'value_phi': value_phi, 'value_c': value_c, 'm': m, 'graphs_created': graphs_created}
     with open(file_name, 'w') as file:
-        dump(s_f, file, indent = 4)
+        dump(s_f, file, indent=4)
+
 
 def load_file(file_name):
     # Loads provided save file and inputs data in graphs and graphs_altered
@@ -546,16 +542,16 @@ layout = update_mainlayout(graphs, graphs_altered, graphs_created)
 # Create the window
 window = sg.Window("Demo", layout, element_padding=1)
 
-memory_initial = process.memory_info().rss/1024 ** 2
+memory_initial = process.memory_info().rss / 1024 ** 2
 
 # Create an event loop
 while True:
     event_1, values_1 = window.read()
-    
+
     # End program if user closes window or presses the OK button
     if event_1 == "Exit" or event_1 == sg.WIN_CLOSED:
         break
-    
+
     # Open plot window
     if event_1 == 'Plot':
         figure, axes = pyplot.subplots()
@@ -606,7 +602,7 @@ while True:
     if event_1 == 'Add':
         add_graph(graphs_created, graphs_altered, graphs)
         reopen()
-    
+
     # Deletes created graph
     if event_1[-7:] == '_remove':
         del graphs_created[event_1[:-7]]
@@ -615,14 +611,14 @@ while True:
     # Saves file
     if event_1 == 'SaveAs':
         save_file(values_1['SaveAs'])
-    
+
     # Loads file
     if event_1 == 'Load':
         load_file(values_1['Load'])
         reopen()
 
     redraw_graph(graphs_altered, graphs_created)
-    if process.memory_info().rss/1024 ** 2 - memory_initial > 100:
+    if process.memory_info().rss / 1024 ** 2 - memory_initial > 100:
         sg.popup('RAM usage is high. It is recommended to restart the program')
 
 window.close()
