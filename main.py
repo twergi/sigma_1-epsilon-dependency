@@ -15,7 +15,7 @@ def float_comma(string):
     return float(string.replace(',', '.'))
 
 
-def read_csv(file_name, graph_key, sigma3, R_f, dic_init, dic_alt):
+def read_csv(file_name, graph_key, sigma3, R_f, color, dic_init, dic_alt):
     # Reads csv and pastes graph_name in dic, then calls split_graph
 
     with open(file_name) as csvfile:
@@ -27,7 +27,7 @@ def read_csv(file_name, graph_key, sigma3, R_f, dic_init, dic_alt):
             'Rf': R_f,
             'checkbox_sigma1': 1,
             'checkbox_E50': 0,
-            'color': f"#{randrange(0, 230, 1):02x}{randrange(0, 230, 1):02x}{randrange(0, 230, 1):02x}",
+            'color': color,
             'sigma1_init': 0.0
         }
 
@@ -263,11 +263,26 @@ def browse_window():
         [
             sg.Column([[sg.Text('Enter R_f'), sg.Input(default_text=0.95, key='-R_f-', size=(10, 1))]])
         ],
+        [
+            sg.Column(
+                [[
+                    sg.Input(
+                        default_text=f"#{randrange(0, 230, 1):02x}{randrange(0, 230, 1):02x}{randrange(0, 230, 1):02x}",
+                        key='-color-',
+                        disabled=True,
+                        size=(10, 1),
+                        enable_events=True,
+                        text_color='#303030'
+                    ),
+                    sg.ColorChooserButton(button_text='Pick color', target='-color-')
+                ]]
+            )
+        ],
         [sg.Button('OK', bind_return_key=True), sg.Button('Cancel')]
     ]
 
     if value_phi == 0 and value_c == 0:
-        layout.insert(3,
+        layout.insert(-1,
                       [sg.Column([
                           [sg.Text('Enter \u03C6 [°]')],
                           [sg.Input(key='-value_phi-', size=(10, 1))]
@@ -322,7 +337,7 @@ def browse_window():
                 if value_phi == 0 and value_c == 0:
                     value_phi = float_comma(values_2['-value_phi-'])
                     value_c = float_comma(values_2['-value_c-'])
-                read_csv(values_2['-file-'], values_2['-graphname-'], float_comma(values_2['-sigma3-']), float_comma(values_2['-R_f-']), graphs, graphs_altered)
+                read_csv(values_2['-file-'], values_2['-graphname-'], float_comma(values_2['-sigma3-']), float_comma(values_2['-R_f-']), values_2['-color-'], graphs, graphs_altered)
                 split_graph(values_2['-graphname-'], graphs, graphs_altered)
                 break
 
