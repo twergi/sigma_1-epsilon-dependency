@@ -15,7 +15,7 @@ def float_comma(string):
     return float(string.replace(',', '.'))
 
 
-def read_csv(file_name, graph_key, sigma3, dic_init, dic_alt):
+def read_csv(file_name, graph_key, sigma3, R_f, dic_init, dic_alt):
     # Reads csv and pastes graph_name in dic, then calls split_graph
 
     with open(file_name) as csvfile:
@@ -24,7 +24,7 @@ def read_csv(file_name, graph_key, sigma3, dic_init, dic_alt):
             'x': [],
             'y': [],
             'sigma3': sigma3,
-            'Rf': 0.95,
+            'Rf': R_f,
             'checkbox_sigma1': 1,
             'checkbox_E50': 0,
             'color': f"#{randrange(0, 230, 1):02x}{randrange(0, 230, 1):02x}{randrange(0, 230, 1):02x}",
@@ -121,21 +121,26 @@ def plot_graph(dic, graph_key):
     axes.grid(True)
 
 
+def calculate_m(dic, dic_alt):
+    graph_1 = list(dic)[0]
+    graph_2 = list(dic)[1]
+    sigma3_1 = dic[graph_1]['sigma3']
+    sigma3_2 = dic[graph_2]['sigma3']
+    E50_1 = dic_alt[f'{graph_1}_1']['E50']['sigma1'] / dic_alt[f'{graph_1}_1']['E50']['epsilon']
+    E50_2 = dic_alt[f'{graph_2}_1']['E50']['sigma1'] / dic_alt[f'{graph_2}_1']['E50']['epsilon']
+    m = - log(E50_2 / E50_1) / log((sigma3_1 + value_c * 1 / tan(radians(value_phi))) / (sigma3_2 + value_c * 1 / tan(radians(value_phi))))
+    m = round(m, 3)
+    return m
+
+
 def update_mainlayout(dic, dic_alt, dic_cr):
     # Updates layout of main window
     global m
     if len(dic) >= 2:
-        graph_1 = list(dic)[0]
-        graph_2 = list(dic)[1]
-        sigma3_1 = dic[graph_1]['sigma3']
-        sigma3_2 = dic[graph_2]['sigma3']
-        E50_1 = dic_alt[f'{graph_1}_1']['E50']['sigma1'] / dic_alt[f'{graph_1}_1']['E50']['epsilon']
-        E50_2 = dic_alt[f'{graph_2}_1']['E50']['sigma1'] / dic_alt[f'{graph_2}_1']['E50']['epsilon']
-        m = - log(E50_2 / E50_1) / log((sigma3_1 + value_c * 1 / tan(radians(value_phi))) / (sigma3_2 + value_c * 1 / tan(radians(value_phi))))
-        m = round(m, 3)
+        m = calculate_m(dic, dic_alt)
     layout = [[
         sg.Button('Browse files'),
-        sg.Button('Plot'),
+        # sg.Button('Plot'),
         sg.Push(),
         sg.VSeparator(),
         sg.Text(text=f'\u03C6={value_phi} [°]'),
@@ -238,26 +243,41 @@ def cut_graph(graph_key, dic_init, dic_alt, sigma1_init):
 
 
 def browse_window():
+    global value_phi, value_c
     # Create the window
-    browse_files = sg.Window(
-        'Browse files',
-        layout=[
-            [
-                sg.In(size=(20, 1), key='-file-'),
-                sg.FileBrowse(
-                    file_types=(('CSV files', '*.csv'),)
-                )
-            ],
-            [sg.Column([
-                [sg.Text('Enter graph name')],
-                [sg.Input(key='-graphname-', size=(20, 1))]
-            ]),
-                sg.Column([
-                    [sg.Text('\u03C33 [kPa]')],
-                    [sg.Input(key='-sigma3-', size=(20, 1))]])
-            ],
-            [sg.Button('OK', bind_return_key=True), sg.Button('Cancel')]
-        ])
+    layout = [
+        [
+            sg.In(size=(20, 1), key='-file-'),
+            sg.FileBrowse(
+                file_types=(('CSV files', '*.csv'),)
+            )
+        ],
+        [sg.Column([
+            [sg.Text('Enter graph name')],
+            [sg.Input(key='-graphname-', size=(20, 1))]
+        ]),
+            sg.Column([
+                [sg.Text('\u03C33 [kPa]')],
+                [sg.Input(key='-sigma3-', size=(20, 1))]])
+        ],
+        [
+            sg.Column([[sg.Text('Enter R_f'), sg.Input(default_text=0.95, key='-R_f-', size=(10, 1))]])
+        ],
+        [sg.Button('OK', bind_return_key=True), sg.Button('Cancel')]
+    ]
+
+    if value_phi == 0 and value_c == 0:
+        layout.insert(3,
+                      [sg.Column([
+                          [sg.Text('Enter \u03C6 [°]')],
+                          [sg.Input(key='-value_phi-', size=(10, 1))]
+                      ]),
+                          sg.Column([
+                              [sg.Text('c [kPa]')],
+                              [sg.Input(key='-value_c-', size=(10, 1))]])
+                      ],
+                      )
+    browse_files = sg.Window('Browse files', layout)
 
     # Create event loop
     while True:
@@ -279,14 +299,30 @@ def browse_window():
                 sg.popup('Wrong \u03C33')
                 continue
 
+            # Checks if phi is empty
+            elif values_2['-value_phi-'] == '' or values_2['-value_phi-'] == '0':
+                sg.popup('\u03C6 is not set')
+                continue
+
+            # Checks if c is empty
+            elif values_2['-value_c-'] == '':
+                sg.popup('c is not set')
+                continue
+
             # If everything is ok check if sigma3 is float, then reads csv and adds graph to dic graphs
             else:
                 try:
                     float_comma(values_2['-sigma3-'])
+                    float_comma(values_2['-value_phi-'])
+                    float_comma(values_2['-value_c-'])
+                    float_comma(values_2['-R_f-'])
                 except ValueError:
-                    sg.popup('Wrong \u03C33')
+                    sg.popup('Wrong \u03C33m, \u03C6 or c')
                     continue
-                read_csv(values_2['-file-'], values_2['-graphname-'], float_comma(values_2['-sigma3-']), graphs, graphs_altered)
+                if value_phi == 0 and value_c == 0:
+                    value_phi = float_comma(values_2['-value_phi-'])
+                    value_c = float_comma(values_2['-value_c-'])
+                read_csv(values_2['-file-'], values_2['-graphname-'], float_comma(values_2['-sigma3-']), float_comma(values_2['-R_f-']), graphs, graphs_altered)
                 split_graph(values_2['-graphname-'], graphs, graphs_altered)
                 break
 
@@ -626,3 +662,4 @@ while True:
         sg.popup('RAM usage is high. It is recommended to restart the program')
 
 window.close()
+exit()
