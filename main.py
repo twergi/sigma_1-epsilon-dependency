@@ -299,6 +299,17 @@ def browse_window():
         event_2, values_2 = browse_files.read()
         # When user presses OK button
         if event_2 == 'OK':
+            if value_phi == 0 and value_c == 0:
+                # Checks if phi is empty
+                if values_2['-value_phi-'] == '' or values_2['-value_phi-'] == '0':
+                    sg.popup('\u03C6 is not set')
+                    continue
+
+                # Checks if c is empty
+                if values_2['-value_c-'] == '':
+                    sg.popup('c is not set')
+                    continue
+
             # Checks path
             if values_2['-file-'] == '' or not path.exists(values_2['-file-']):
                 sg.popup('Wrong path')
@@ -314,22 +325,13 @@ def browse_window():
                 sg.popup('Wrong \u03C33')
                 continue
 
-            # Checks if phi is empty
-            elif values_2['-value_phi-'] == '' or values_2['-value_phi-'] == '0':
-                sg.popup('\u03C6 is not set')
-                continue
-
-            # Checks if c is empty
-            elif values_2['-value_c-'] == '':
-                sg.popup('c is not set')
-                continue
-
             # If everything is ok check if sigma3 is float, then reads csv and adds graph to dic graphs
             else:
                 try:
                     float_comma(values_2['-sigma3-'])
-                    float_comma(values_2['-value_phi-'])
-                    float_comma(values_2['-value_c-'])
+                    if value_phi == 0 and value_c == 0:
+                        float_comma(values_2['-value_phi-'])
+                        float_comma(values_2['-value_c-'])
                     float_comma(values_2['-R_f-'])
                 except ValueError:
                     sg.popup('Wrong \u03C33m, \u03C6 or c')
