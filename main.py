@@ -8,6 +8,8 @@ from math import tan, radians, log, cos, sin
 from os import path
 import os
 import psutil
+
+
 process = psutil.Process(os.getpid())
 
 
@@ -15,12 +17,12 @@ def float_comma(string):
     return float(string.replace(',', '.'))
 
 
-def read_csv(file_name, graph_key, sigma3, R_f, color, dic_init, dic_alt):
+def read_csv(file_name, graph_key, sigma3, R_f, color, DATA):
     # Reads csv and pastes graph_name in dic, then calls split_graph
 
     with open(file_name) as csvfile:
         file = reader(csvfile, delimiter=';')
-        dic_init[graph_key] = {
+        DATA['graphs_initial'][graph_key] = {
             'x': [],
             'y': [],
             'sigma3': sigma3,
@@ -32,81 +34,83 @@ def read_csv(file_name, graph_key, sigma3, R_f, color, dic_init, dic_alt):
         }
 
         for row in file:
-            dic_init[graph_key]['x'].append(float_comma(row[1]))
-            dic_init[graph_key]['y'].append(float_comma(row[0]))
+            DATA['graphs_initial'][graph_key]['x'].append(float_comma(row[1]))
+            DATA['graphs_initial'][graph_key]['y'].append(float_comma(row[0]))
 
-        dic_init[graph_key]['sigma1_max'] = max(dic_init[graph_key]['y'])
-        dic_init[graph_key]['sigma1_init'] = min(dic_init[graph_key]['y'])
-        dic_init[graph_key]['epsilon_init'] = min(dic_init[graph_key]['x'])
-        dic_alt[f'{graph_key}_1'] = {
+        DATA['graphs_initial'][graph_key]['sigma1_max'] = max(DATA['graphs_initial'][graph_key]['y'])
+        DATA['graphs_initial'][graph_key]['sigma1_init'] = min(DATA['graphs_initial'][graph_key]['y'])
+        DATA['graphs_initial'][graph_key]['epsilon_init'] = min(DATA['graphs_initial'][graph_key]['x'])
+        DATA['graphs_altered'][f"{graph_key}_1"] = {
             'x': [],
             'y': [],
             'E50': {'sigma1': 0, 'epsilon': 0},
             'E50_lab': {'sigma1': 0, 'epsilon': 0},
             'checkbox_sigma1': 1,
             'checkbox_E50': 0,
-            'color': dic_init[graph_key]['color'],
+            'color': DATA['graphs_initial'][graph_key]['color'],
         }
-        dic_alt[f'{graph_key}_2'] = {
+        DATA['graphs_altered'][f"{graph_key}_2"] = {
             'x': [],
             'y': [],
             'checkbox_sigma1': 1
         }
 
 
-def reopen():
+# def reopen():
+def reopen(window, layout, DATA):
     ''' Closes and opens main window '''
-    global window, layout
+    # global window, layout
     loc = window.CurrentLocation()
     window.close()
-    layout = update_mainlayout(graphs, graphs_altered, graphs_created)
+    layout = update_mainlayout(DATA)
     window = sg.Window("Demo", layout=layout, location=loc, element_padding=1)
+    return window, layout
 
 
-def redraw_graph(dic, dic_cr, dic_init):
+def redraw_graph(DATA):
     ''' Clears pyplot window and redraws all graphs in dic '''
 
     axes.clear()
-    for graph_key in dic:
-        if dic[graph_key]['checkbox_sigma1'] == 1:
+    for graph_key in DATA['graphs_altered']:
+        if DATA['graphs_altered'][graph_key]['checkbox_sigma1'] == 1:
             # Makes graphs 'tail' gray
             if graph_key[-2:] == '_2':
                 axes.plot(
-                    dic[graph_key]['x'],
-                    dic[graph_key]['y'],
+                    DATA['graphs_altered'][graph_key]['x'],
+                    DATA['graphs_altered'][graph_key]['y'],
                     linestyle='--',
                     color='gray'
                     )
 
             else:
                 axes.plot(
-                    dic[graph_key]['x'],
-                    dic[graph_key]['y'],
+                    DATA['graphs_altered'][graph_key]['x'],
+                    DATA['graphs_altered'][graph_key]['y'],
                     marker='.',
-                    color=dic[graph_key]['color'],
-                    label=f'{graph_key[:-2]} (Rf={dic_init[graph_key[:-2]]["Rf"]})'
+                    color=DATA['graphs_altered'][graph_key]['color'],
+                    label=f"{graph_key[:-2]} (Rf={DATA['graphs_initial'][graph_key[:-2]]['Rf']})"
                 )
-        if graph_key[-2:] == '_1' and dic[graph_key]['checkbox_E50'] == 1:
+        if graph_key[-2:] == '_1' and DATA['graphs_altered'][graph_key]['checkbox_E50'] == 1:
             pyplot.axline(
                 (0, 0),
                 (
-                    dic[graph_key]['E50']['epsilon'],
-                    dic[graph_key]['E50']['sigma1']
+                    DATA['graphs_altered'][graph_key]['E50']['epsilon'],
+                    DATA['graphs_altered'][graph_key]['E50']['sigma1']
                 ),
-                color=dic[graph_key]['color'],
+                color=DATA['graphs_altered'][graph_key]['color'],
                 linestyle='--',
-                label=f'{graph_key[:-2]} E50'
+                label=f"{graph_key[:-2]} E50"
             )
-    for graph_key in dic_cr:
+    for graph_key in DATA['graphs_created']:
         axes.plot(
-            dic_cr[graph_key]['1']['x'],
-            dic_cr[graph_key]['1']['y'],
-            label=f'{graph_key} (q_a={round(dic_cr[graph_key]["q_a"], 2)} [kPa])',
+            DATA['graphs_created'][graph_key]['1']['x'],
+            DATA['graphs_created'][graph_key]['1']['y'],
+            label=f"{graph_key} (q_a={round(DATA['graphs_created'][graph_key]['q_a'], 2)} [kPa])",
             linestyle='--'
         )
         axes.plot(
-            dic_cr[graph_key]['2']['x'],
-            dic_cr[graph_key]['2']['y'],
+            DATA['graphs_created'][graph_key]['2']['x'],
+            DATA['graphs_created'][graph_key]['2']['y'],
             linestyle='--',
             color='gray'
         )
@@ -119,16 +123,16 @@ def redraw_graph(dic, dic_cr, dic_init):
     axes.grid(True)
 
 
-def plot_graph(dic, graph_key):
+def plot_graph(DATA, graph_key):
     # Draws single graph from dic
 
     axes.clear()
     axes.plot(
-        dic['x'],
-        dic['y'],
+        DATA['graphs_init'][graph_key]['x'],
+        DATA['graphs_init'][graph_key]['y'],
         label=graph_key,
         marker='.',
-        color=dic['color']
+        color=DATA['graphs_init'][graph_key]['color']
     )
     axes.set_xlabel('\u03B5')
     axes.set_ylabel('\u03C31 [kPa]')
@@ -136,124 +140,234 @@ def plot_graph(dic, graph_key):
     axes.grid(True)
 
 
-def calculate_m(dic, dic_alt):
-    graph_1 = list(dic)[0]
-    graph_2 = list(dic)[1]
-    sigma3_1 = dic[graph_1]['sigma3']
-    sigma3_2 = dic[graph_2]['sigma3']
+def calculate_m(DATA):
+    graph_1 = DATA['m_graphs'][0]
+    graph_2 = DATA['m_graphs'][1]
+    sigma3_1 = DATA['graphs_initial'][graph_1]['sigma3']
+    sigma3_2 = DATA['graphs_initial'][graph_2]['sigma3']
     E50_1 = (
-        dic_alt[f'{graph_1}_1']['E50']['sigma1']
-        / dic_alt[f'{graph_1}_1']['E50']['epsilon']
+        DATA['graphs_altered'][f"{graph_1}_1"]['E50']['sigma1']
+        / DATA['graphs_altered'][f"{graph_1}_1"]['E50']['epsilon']
     )
     E50_2 = (
-        dic_alt[f'{graph_2}_1']['E50']['sigma1']
-        / dic_alt[f'{graph_2}_1']['E50']['epsilon']
+        DATA['graphs_altered'][f"{graph_2}_1"]['E50']['sigma1']
+        / DATA['graphs_altered'][f"{graph_2}_1"]['E50']['epsilon']
     )
     m = (
         - log(E50_2 / E50_1)
         / log(
             (
-                sigma3_1 + value_c * 1 / tan(radians(value_phi))
+                sigma3_1 + DATA['value_c'] * 1 / tan(radians(DATA['value_phi']))
             )
             / (
-                sigma3_2 + value_c * 1 / tan(radians(value_phi))
+                sigma3_2 + DATA['value_c'] * 1 / tan(radians(DATA['value_phi']))
             )
         )
+    )
+    DATA['p_ref'] = min(
+        DATA['graphs_initial'][graph_1]['sigma3'],
+        DATA['graphs_initial'][graph_2]['sigma3']
     )
     m = round(m, 3)
     return m
 
 
-def update_mainlayout(dic, dic_alt, dic_cr):
-    # Updates layout of main window
-    global m
+def create_column_layout(DATA):
+    ''' Creates layout consisting of columns to display opened graphs
+    '''
+    bg_clr = '#202020'
 
-    menu = [['&File', ['&Browse files', '---', '&Save', '&Load', '---', '&Exit']]]
-
-    if len(dic) >= 2:
-        m = calculate_m(dic, dic_alt)
-
-    menu_layout = [
-        sg.Button('Browse files'),
-        # sg.Button('Plot'),
+    lst = [
+        [[sg.Text('m', background_color=bg_clr)]],  # column for m_graphs
+        [[sg.Text('Name', background_color=bg_clr)]], # name
+        [[sg.Text('\u03C33 [kPa]', background_color=bg_clr)]], # sigma_3
+        [[sg.Text('E50 [kPa]', background_color=bg_clr)]], # E50
+        [[sg.Text('E50_lab [kPa]', background_color=bg_clr)]], # E50_lab
+        [[sg.Text('Display \u03C31', background_color=bg_clr)]], # checkbox_sigma
+        [[sg.Text('Display E50', background_color=bg_clr)]], # checkbox_E50
+        [[sg.Text('Configure', background_color=bg_clr)]], # configure
     ]
 
+    for i in DATA['graphs_initial']:
+        lst[0].append(
+            [sg.Text(
+                cb_on if i in DATA['m_graphs'] else cb_off,
+                enable_events=True,
+                key=('checkbox_m', i),
+                tooltip='Enabled' if i in DATA['m_graphs'] else 'Disabled',
+            )]
+        )
+        lst[1].append(
+            [sg.Text(i, background_color=bg_clr)]
+        )
+        lst[2].append(
+            [sg.Text(DATA['graphs_initial'][i]['sigma3'], background_color=bg_clr)]
+        )
+        lst[3].append(
+            [sg.Text(
+                f"{round(DATA['graphs_altered'][str(i)+str('_1')]['E50']['sigma1']/DATA['graphs_altered'][str(i)+str('_1')]['E50']['epsilon']):,}".replace(',', ' '),
+                background_color=bg_clr
+            )]
+        )
+        lst[4].append(
+            [sg.Text(
+                f"{round(DATA['graphs_altered'][str(i)+str('_1')]['E50_lab']['sigma1']/DATA['graphs_altered'][str(i)+str('_1')]['E50_lab']['epsilon']):,}".replace(',', ' '),
+                background_color=bg_clr
+            )]
+        )
+        lst[5].append(
+            [
+                sg.Text(
+                    key=('checkbox_sigma1', i),
+                    enable_events=True,
+                    text=(cb_on if DATA['graphs_initial'][i]['checkbox_sigma1'] else cb_off),
+                    background_color=bg_clr,
+                    tooltip='Enabled' if DATA['graphs_initial'][i]['checkbox_sigma1'] else 'Disabled',
+                )
+            ]
+        )
+        lst[6].append(
+            [
+                sg.Text(
+                    key=('checkbox_E50', i),
+                    enable_events=True,
+                    text=(cb_on if DATA['graphs_initial'][i]['checkbox_E50'] else cb_off),
+                    background_color=bg_clr,
+                    tooltip='Enabled' if DATA['graphs_initial'][i]['checkbox_E50'] else 'Disabled',
+                )
+            ]
+        )
+        lst[7].append(
+            [sg.Text(
+                '\u2699',
+                key=('configure_OG', i),
+                enable_events=True,
+                background_color=bg_clr,
+                tooltip='Open configuration'
+            )]
+        )
+
+    layout = [
+        [
+            sg.Column(
+                i,
+                element_justification='center',
+                background_color=bg_clr
+            ) for i in [
+                lst[0],
+                lst[1],
+                lst[2],
+                lst[3],
+                lst[4],
+                lst[5],
+                lst[6],
+                lst[7],
+            ]
+        ]
+    ]
+    return layout if len(DATA['graphs_initial']) else []
+
+
+def create_custom_column_layout(DATA):
+    ''' Creates column layout for custom graphs
+    '''
+    bg_clr = '#202020'
+
+    lst = [
+        [[sg.Text('Name', background_color=bg_clr)]],  # name
+        [[sg.Text('\u03C33 [kPa]', background_color=bg_clr)]],  # sigma_3
+        [[sg.Text('E50 [kPa]', background_color=bg_clr)]],  # E50
+        [[sg.Text('q_f [kPa]', background_color=bg_clr)]],  # q_f
+        [[sg.Text('q_a [kPa]', background_color=bg_clr)]],  # q_a
+        [[sg.Text('m', background_color=bg_clr)]],  # m
+        [[sg.Text('Remove', background_color=bg_clr)]],  # remove
+    ]
+
+    for i in DATA['graphs_created']:
+        lst[0].append(
+            [sg.Text(i, background_color=bg_clr)]
+        )
+        lst[1].append(
+            [sg.Text(DATA['graphs_created'][i]['sigma3'], background_color=bg_clr)]
+        )
+        lst[2].append(
+            [sg.Text(f"{round(DATA['graphs_created'][i]['E50']):,}".replace(',', ' '), background_color=bg_clr)]
+        )
+        lst[3].append(
+            [sg.Text(f"{round(DATA['graphs_created'][i]['q_f']):,}".replace(',', ' '), background_color=bg_clr)]
+        )
+        lst[4].append(
+            [sg.Text(f"{round(DATA['graphs_created'][i]['q_a']):,}".replace(',', ' '), background_color=bg_clr)]
+        )
+        lst[5].append(
+            [sg.Text(DATA['graphs_created'][i]['m'], background_color=bg_clr)]
+        )
+        lst[6].append(
+            [sg.Text(
+                '\u274C',
+                key=('remove', i),
+                enable_events=True,
+                tooltip='Remove this graph',
+            )]
+        )
+
+    layout = [
+        [
+            sg.Column(
+                i,
+                element_justification='center',
+                background_color=bg_clr
+            ) for i in [
+                lst[0],
+                lst[1],
+                lst[2],
+                lst[3],
+                lst[4],
+                lst[5],
+                lst[6],
+            ]
+        ]
+    ]
+    return layout if len(DATA['graphs_created']) else []
+
+
+def update_mainlayout(DATA):
+    ''' Updates layout of main window
+    '''
+    menu = [['&File', ['&Browse files', '---', '&Save', '&Load', '---', '&Exit']]]
+
     information_layout = [
-        sg.Frame('', layout=[[sg.Text(f'm={m}', text_color='#0e0')]]),
+        sg.Frame('', layout=[
+            [sg.Text(
+                f"p_ref={DATA['p_ref']} [kPa]",
+                key='-P_REF_VALUE-'
+            )],
+            [sg.Text(
+                f"m={DATA['m']}",
+                text_color='#0e0',
+                key='-M_VALUE-',
+            )]
+        ]),
         sg.Push(),
-        sg.Text(text=f'\u03C6={value_phi} [°]'),
-        sg.Text(text=f'c={value_c} [kPa]'),
+        sg.Text(text=f"\u03C6={DATA['value_phi']} [°]"),
+        sg.Text(text=f"c={DATA['value_c']} [kPa]"),
         sg.Button('Configure', key='-c_and_phi-')
     ]
 
-    graphs_layout = [
-        [
-            sg.Text(i),
-            sg.Text(f"\u03C33 = {dic[i]['sigma3']} [kPa]"),
-            sg.Text(
-                f"E50 = {round(dic_alt[str(i)+str('_1')]['E50']['sigma1']/dic_alt[str(i)+str('_1')]['E50']['epsilon'], 2)} [kPa]"
-            ),
-            sg.Text(
-                f"E50_lab = {round(dic_alt[str(i)+str('_1')]['E50_lab']['sigma1']/dic_alt[str(i)+str('_1')]['E50_lab']['epsilon'], 2)} [kPa]"
-            ),
-            sg.Push(),
-            sg.Checkbox(
-                key=f'{i}_checkbox_sigma1',
-                enable_events=True,
-                text='\u03C31',
-                default=(dic[i]['checkbox_sigma1'])
-            ),
-            sg.Checkbox(
-                key=f'{i}_checkbox_E50',
-                enable_events=True,
-                text='E50',
-                default=(dic[i]['checkbox_E50'])
-            ),
-            sg.Button('Configure', key=i)
-        ] for i in dic
-    ]
+    graphs_layout_columns = create_column_layout(DATA)
 
-    custom_graphs_layout = [
-        [
-            sg.Text(i),
-            sg.Text(f"\u03C33 = {dic_cr[i]['sigma3']} [kPa]"),
-            sg.Text(f"E50 = {round(dic_cr[i]['E50'])} [kPa]"),
-            sg.Text(f"q_f = {round(dic_cr[i]['q_f'], 2)} [kPa]"),
-            sg.Text(f"q_a = {round(dic_cr[i]['q_a'], 2)} [kPa]"),
-            sg.Push(),
-            sg.Button('Remove', key=f"{i}_remove")
-        ] for i in dic_cr
-    ]
-
-    bottom_buttons_layout = [
-        [
-            sg.Input(key='SaveAs', visible=False, enable_events=True),
-            sg.FileSaveAs(
-                button_text='Save',
-                file_types=(('TXT files', '*.txt'),)
-            ),
-            sg.Input(key='Load', visible=False, enable_events=True),
-            sg.FileBrowse(
-                button_text='Load',
-                file_types=(('TXT files', '*.txt'),),
-            ),
-            sg.Push(),
-            sg.Button('Exit')
-        ]
-    ]
+    custom_graphs_layout = create_custom_column_layout(DATA)
 
     layout = [
         [sg.Menu(
             menu_definition=menu,
         )],
-        # menu_layout,
         information_layout,
         [sg.Text()],
-        [sg.Frame('Opened graphs', layout=graphs_layout)],
-        # [sg.VPush()],
-        # bottom_buttons_layout,
+        [sg.Frame('Opened graphs', layout=graphs_layout_columns)],
     ]
-    if len(dic) >= 2:
+
+    if len(DATA['graphs_initial']) >= 2:
         layout.append([sg.Text()])
         custom_graphs_layout.append(
             [sg.Push(), sg.Button(button_text='Add')]
@@ -261,120 +375,122 @@ def update_mainlayout(dic, dic_alt, dic_cr):
         layout.append(
             [sg.Frame('Custom graphs', layout=custom_graphs_layout)]
         )
+
     return layout
 
 
-def split_graph(graph_key, dic_init, dic_alt):
+def split_graph(graph_key, DATA):
     """ Splits dic_init in break point (sigma_max * Rf)
         and adds obtained graphs in dic_alt
     """
-    break_y = dic_init[graph_key]['sigma1_max'] * dic_init[graph_key]['Rf']
 
-    for i in range(len(dic_init[graph_key]['y'])):
+    break_y = DATA['graphs_initial'][graph_key]['sigma1_max'] * DATA['graphs_initial'][graph_key]['Rf']
+
+    for i in range(len(DATA['graphs_initial'][graph_key]['y'])):
         # Adds sigma1 and epsilon of E50
         if (
-            dic_init[graph_key]['y'][i] >= break_y / 2
-            and dic_init[graph_key]['y'][i - 1] < break_y / 2
+            DATA['graphs_initial'][graph_key]['y'][i] >= break_y / 2
+            and DATA['graphs_initial'][graph_key]['y'][i - 1] < break_y / 2
         ):
-            dic_alt[f'{graph_key}_1']['E50']['sigma1'] = break_y / 2
-            dic_alt[f'{graph_key}_1']['E50']['epsilon'] = (
+            DATA['graphs_altered'][f"{graph_key}_1"]['E50']['sigma1'] = break_y / 2
+            DATA['graphs_altered'][f"{graph_key}_1"]['E50']['epsilon'] = (
                 interp(
                     break_y / 2,
-                    dic_init[graph_key]['y'][i - 1:i + 1],
-                    dic_init[graph_key]['x'][i - 1:i + 1]
+                    DATA['graphs_initial'][graph_key]['y'][i - 1:i + 1],
+                    DATA['graphs_initial'][graph_key]['x'][i - 1:i + 1]
                 )
                 )
 
         # Creates break point and splits graphs
         if (
-            dic_init[graph_key]['y'][i] >= break_y
+            DATA['graphs_initial'][graph_key]['y'][i] >= break_y
         ):
-            dic_alt[f'{graph_key}_1']['y'] = dic_init[graph_key]['y'][:i]
-            dic_alt[f'{graph_key}_1']['y'].append(break_y)
-            dic_alt[f'{graph_key}_1']['y'].append(break_y)
-            dic_alt[f'{graph_key}_1']['x'] = dic_init[graph_key]['x'][:i]
-            dic_alt[f'{graph_key}_1']['x'].append(
+            DATA['graphs_altered'][f"{graph_key}_1"]['y'] = DATA['graphs_initial'][graph_key]['y'][:i]
+            DATA['graphs_altered'][f"{graph_key}_1"]['y'].append(break_y)
+            DATA['graphs_altered'][f"{graph_key}_1"]['y'].append(break_y)
+            DATA['graphs_altered'][f"{graph_key}_1"]['x'] = DATA['graphs_initial'][graph_key]['x'][:i]
+            DATA['graphs_altered'][f"{graph_key}_1"]['x'].append(
                 interp(
                     break_y,
-                    dic_init[graph_key]['y'][i - 1:i + 1],
-                    dic_init[graph_key]['x'][i - 1:i + 1]
+                    DATA['graphs_initial'][graph_key]['y'][i - 1:i + 1],
+                    DATA['graphs_initial'][graph_key]['x'][i - 1:i + 1]
                 )
                 )
-            dic_alt[f'{graph_key}_1']['x'].append(dic_init[graph_key]['x'][-1])
+            DATA['graphs_altered'][f"{graph_key}_1"]['x'].append(DATA['graphs_initial'][graph_key]['x'][-1])
 
-            dic_alt[f'{graph_key}_2']['y'] = dic_init[graph_key]['y'][i:]
-            dic_alt[f'{graph_key}_2']['y'].insert(0, break_y)
-            dic_alt[f'{graph_key}_2']['x'] = dic_init[graph_key]['x'][i:]
-            dic_alt[f'{graph_key}_2']['x'].insert(0, interp(
-                break_y, dic_init[graph_key]['y'][i - 1:i + 1],
-                dic_init[graph_key]['x'][i - 1:i + 1]
+            DATA['graphs_altered'][f"{graph_key}_2"]['y'] = DATA['graphs_initial'][graph_key]['y'][i:]
+            DATA['graphs_altered'][f"{graph_key}_2"]['y'].insert(0, break_y)
+            DATA['graphs_altered'][f"{graph_key}_2"]['x'] = DATA['graphs_initial'][graph_key]['x'][i:]
+            DATA['graphs_altered'][f"{graph_key}_2"]['x'].insert(0, interp(
+                break_y,
+                DATA['graphs_initial'][graph_key]['y'][i - 1:i + 1],
+                DATA['graphs_initial'][graph_key]['x'][i - 1:i + 1]
             )
             )
             break
 
-        for i in range(len(dic_init[graph_key]['y'])):
+        for i in range(len(DATA['graphs_initial'][graph_key]['y'])):
             # Adds sigma1 and epsilon of E50_lab
             if (
-                dic_init[graph_key]['y'][i] >= dic_init[graph_key]['sigma1_max'] / 2
+                DATA['graphs_initial'][graph_key]['y'][i] >= DATA['graphs_initial'][graph_key]['sigma1_max'] / 2
             ):
-                dic_alt[f'{graph_key}_1']['E50_lab']['sigma1'] = dic_init[graph_key]['sigma1_max'] / 2
-                dic_alt[f'{graph_key}_1']['E50_lab']['epsilon'] = interp(
-                    dic_init[graph_key]['sigma1_max'] / 2,
-                    dic_init[graph_key]['y'][i - 1:i + 1],
-                    dic_init[graph_key]['x'][i - 1:i + 1]
+                DATA['graphs_altered'][f"{graph_key}_1"]['E50_lab']['sigma1'] = DATA['graphs_initial'][graph_key]['sigma1_max'] / 2
+                DATA['graphs_altered'][f"{graph_key}_1"]['E50_lab']['epsilon'] = interp(
+                    DATA['graphs_initial'][graph_key]['sigma1_max'] / 2,
+                    DATA['graphs_initial'][graph_key]['y'][i - 1:i + 1],
+                    DATA['graphs_initial'][graph_key]['x'][i - 1:i + 1]
                 )
                 break
 
 
-def cut_graph(graph_key, dic_init, dic_alt, sigma1_init):
-    for i in range(len(dic_init[graph_key]['y'])):
-        if dic_init[graph_key]['y'][i] >= sigma1_init:
+def cut_graph(graph_key, DATA, sigma1_init):
+    for i in range(len(DATA['graphs_initial'][graph_key]['y'])):
+        if DATA['graphs_initial'][graph_key]['y'][i] >= sigma1_init:
             epsilon_init = interp(
-                sigma1_init, dic_init[graph_key]['y'][i - 1:i + 1],
-                dic_init[graph_key]['x'][i - 1:i + 1]
+                sigma1_init, DATA['graphs_initial'][graph_key]['y'][i - 1:i + 1],
+                DATA['graphs_initial'][graph_key]['x'][i - 1:i + 1]
                 )
             break
 
-    for i in range(len(dic_init[graph_key]['y'])):
-        dic_init[graph_key]['y'][i] += (
-            dic_init[graph_key]['sigma1_init']
+    for i in range(len(DATA['graphs_initial'][graph_key]['y'])):
+        DATA['graphs_initial'][graph_key]['y'][i] += (
+            DATA['graphs_initial'][graph_key]['sigma1_init']
             - sigma1_init
         )
-        dic_init[graph_key]['x'][i] += (
-            dic_init[graph_key]['epsilon_init']
+        DATA['graphs_initial'][graph_key]['x'][i] += (
+            DATA['graphs_initial'][graph_key]['epsilon_init']
             - epsilon_init
         )
 
-    for i in range(len(dic_alt[f'{graph_key}_1']['y'])):
-        dic_alt[f'{graph_key}_1']['y'][i] += (
-            dic_init[graph_key]['sigma1_init']
+    for i in range(len(DATA['graphs_altered'][f"{graph_key}_1"]['y'])):
+        DATA['graphs_altered'][f"{graph_key}_1"]['y'][i] += (
+            DATA['graphs_initial'][graph_key]['sigma1_init']
             - sigma1_init
         )
-        dic_alt[f'{graph_key}_1']['x'][i] += (
-            dic_init[graph_key]['epsilon_init']
+        DATA['graphs_altered'][f"{graph_key}_1"]['x'][i] += (
+            DATA['graphs_initial'][graph_key]['epsilon_init']
             - epsilon_init
             )
 
-    for i in range(len(dic_alt[f'{graph_key}_2']['y'])):
-        dic_alt[f'{graph_key}_2']['y'][i] += (
-            dic_init[graph_key]['sigma1_init']
+    for i in range(len(DATA['graphs_altered'][f'{graph_key}_2']['y'])):
+        DATA['graphs_altered'][f"{graph_key}_2"]['y'][i] += (
+            DATA['graphs_initial'][graph_key]['sigma1_init']
             - sigma1_init
         )
-        dic_alt[f'{graph_key}_2']['x'][i] += (
-            dic_init[graph_key]['epsilon_init']
+        DATA['graphs_altered'][f"{graph_key}_2"]['x'][i] += (
+            DATA['graphs_initial'][graph_key]['epsilon_init']
             - epsilon_init
         )
 
-    dic_init[graph_key]['sigma1_max'] += (
-        dic_init[graph_key]['sigma1_init']
+    DATA['graphs_initial'][graph_key]['sigma1_max'] += (
+        DATA['graphs_initial'][graph_key]['sigma1_init']
         - sigma1_init
         )
-    dic_init[graph_key]['sigma1_init'] = sigma1_init
-    dic_init[graph_key]['epsilon_init'] = epsilon_init
+    DATA['graphs_initial'][graph_key]['sigma1_init'] = sigma1_init
+    DATA['graphs_initial'][graph_key]['epsilon_init'] = epsilon_init
 
 
-def browse_window():
-    global value_phi, value_c
+def browse_window(DATA):
     # Create the window
     layout = [
         [
@@ -422,7 +538,7 @@ def browse_window():
         [sg.Button('OK', bind_return_key=True), sg.Button('Cancel')]
     ]
 
-    if value_phi == 0 and value_c == 0:
+    if DATA['value_phi'] == 0 and DATA['value_c'] == 0:
         layout.insert(-1,
                       [sg.Column([
                           [sg.Text('Enter \u03C6 [°]')],
@@ -440,7 +556,7 @@ def browse_window():
         event_2, values_2 = browse_files.read()
         # When user presses OK button
         if event_2 == 'OK':
-            if value_phi == 0 and value_c == 0:
+            if DATA['value_phi'] == 0 and DATA['value_c'] == 0:
                 # Checks if phi is empty
                 if (
                     values_2['-value_phi-'] == ''
@@ -461,14 +577,7 @@ def browse_window():
 
             # Checks graph name
             elif (
-                values_2['-graphname-'] in [
-                    'Browse files',
-                    'Exit',
-                    'Update',
-                    'SaveAs',
-                    'Load'
-                ]
-                or values_2['-graphname-'] == ''
+                values_2['-graphname-'] == ''
             ):
                 sg.popup('Wrong graph name')
                 continue
@@ -482,7 +591,7 @@ def browse_window():
             else:
                 try:
                     float_comma(values_2['-sigma3-'])
-                    if value_phi == 0 and value_c == 0:
+                    if DATA['value_phi'] == 0 and DATA['value_c'] == 0:
                         float_comma(values_2['-value_phi-'])
                         float_comma(values_2['-value_c-'])
                     float_comma(values_2['-R_f-'])
@@ -490,9 +599,9 @@ def browse_window():
                     sg.popup('Wrong \u03C33m, \u03C6 or c')
                     continue
 
-                if value_phi == 0 and value_c == 0:
-                    value_phi = float_comma(values_2['-value_phi-'])
-                    value_c = float_comma(values_2['-value_c-'])
+                if DATA['value_phi'] == 0 and DATA['value_c'] == 0:
+                    DATA['value_phi'] = float_comma(values_2['-value_phi-'])
+                    DATA['value_c'] = float_comma(values_2['-value_c-'])
 
                 read_csv(
                     values_2['-file-'],
@@ -500,10 +609,10 @@ def browse_window():
                     float_comma(values_2['-sigma3-']),
                     float_comma(values_2['-R_f-']),
                     values_2['-color-'],
-                    graphs, graphs_altered
+                    DATA
                 )
 
-                split_graph(values_2['-graphname-'], graphs, graphs_altered)
+                split_graph(values_2['-graphname-'], DATA)
                 break
 
         # Closes window when window is closed or user presses Cancel button
@@ -514,13 +623,13 @@ def browse_window():
     browse_files.close()
 
 
-def configure_window(graph_key, dic, dic_alt):
+def configure_window(graph_key, DATA):
     # Opens window to configure each graph
 
     layout = [
         [
             sg.Input(
-                default_text=dic[graph_key]['color'],
+                default_text=DATA['graphs_initial'][graph_key]['color'],
                 key='-color-',
                 disabled=True, size=(10, 1),
                 enable_events=True,
@@ -539,22 +648,22 @@ def configure_window(graph_key, dic, dic_alt):
 
             sg.Column([
                 [sg.Input(
-                    default_text=dic[graph_key]['sigma3'],
+                    default_text=DATA['graphs_initial'][graph_key]['sigma3'],
                     key='-sigma3-',
                     size=(10, 1)
                 )],
                 [sg.Input(
-                    default_text=dic[graph_key]['sigma1_max'],
+                    default_text=DATA['graphs_initial'][graph_key]['sigma1_max'],
                     key='-sigma1_max-',
                     size=(10, 1)
                 )],
                 [sg.Input(
-                    default_text=dic[graph_key]['sigma1_init'],
+                    default_text=DATA['graphs_initial'][graph_key]['sigma1_init'],
                     key='-sigma1_init-',
                     size=(10, 1)
                 )],
                 [sg.Input(
-                    default_text=dic[graph_key]['Rf'],
+                    default_text=DATA['graphs_initial'][graph_key]['Rf'],
                     key='-Rf-',
                     size=(10, 1)
                 )]
@@ -572,7 +681,7 @@ def configure_window(graph_key, dic, dic_alt):
     ]
 
     configure = sg.Window(
-        f'Configure {graph_key}',
+        f"Configure {graph_key}",
         layout,
         resizable=True,
         grab_anywhere=True
@@ -582,12 +691,12 @@ def configure_window(graph_key, dic, dic_alt):
         event_3, values_3 = configure.read()
 
         if event_3 == sg.WIN_CLOSED or event_3 == 'Cancel':
-            dic[graph_key]['color'] = dic_alt[f'{graph_key}_1']['color']
+            DATA['graphs_initial'][graph_key]['color'] = DATA['graphs_altered'][f"{graph_key}_1"]['color']
             break
 
         if event_3 == '-color-':
-            dic[graph_key]['color'] = values_3['-color-']
-            plot_graph(dic[graph_key], graph_key)
+            DATA['graphs_initial'][graph_key]['color'] = values_3['-color-']
+            plot_graph(DATA, graph_key)
 
         if event_3 == 'OK':
             try:
@@ -608,33 +717,33 @@ def configure_window(graph_key, dic, dic_alt):
             elif (
                 float_comma(values_3['-sigma1_max-']) <= 0
                 or float_comma(values_3['-sigma1_max-'])
-                > max(dic[graph_key]['y'])
+                > max(DATA['graphs_initial'][graph_key]['y'])
             ):
                 sg.popup('Invalid \u03C31_max')
                 continue
 
             elif (
                 float_comma(values_3['-sigma1_init-'])
-                > max(dic[graph_key]['y'])
+                > max(DATA['graphs_initial'][graph_key]['y'])
                 or float_comma(values_3['-sigma1_init-'])
-                < min(dic[graph_key]['y'])
+                < min(DATA['graphs_initial'][graph_key]['y'])
             ):
                 sg.popup('Invalid \u03C31_initial')
                 continue
 
             else:
-                dic[graph_key]['Rf'] = float_comma(values_3['-Rf-'])
-                dic[graph_key]['sigma3'] = float_comma(values_3['-sigma3-'])
-                dic[graph_key]['sigma1_max'] = float_comma(
+                DATA['graphs_initial'][graph_key]['Rf'] = float_comma(values_3['-Rf-'])
+                DATA['graphs_initial'][graph_key]['sigma3'] = float_comma(values_3['-sigma3-'])
+                DATA['graphs_initial'][graph_key]['sigma1_max'] = float_comma(
                     values_3['-sigma1_max-']
                 )
-                dic_alt[f'{graph_key}_1']['color'] = dic[graph_key]['color']
+                DATA['graphs_altered'][f"{graph_key}_1"]['color'] = DATA['graphs_initial'][graph_key]['color']
                 if (
                     float_comma(values_3['-sigma1_init-'])
-                    != dic[graph_key]['sigma1_init']
+                    != DATA['graphs_initial'][graph_key]['sigma1_init']
                 ):
                     cut_graph(
-                        graph_key, dic, dic_alt,
+                        graph_key, DATA,
                         float_comma(values_3['-sigma1_init-'])
                     )
                 break
@@ -642,9 +751,9 @@ def configure_window(graph_key, dic, dic_alt):
     configure.close()
 
 
-def add_graph(dic_cr, dic_alt, dic_init):
+def add_graph(DATA):
     layout = [
-        [sg.HSeparator(), sg.Text(f'm = {m}'), sg.HSeparator()],
+        [sg.HSeparator(), sg.Text(f"m = {DATA['m']}"), sg.HSeparator()],
         [
             sg.Text('Graph name'),
             sg.Push(),
@@ -678,34 +787,34 @@ def add_graph(dic_cr, dic_alt, dic_init):
                 except ValueError:
                     sg.popup('Wrong data type')
                     continue
-                graph_1 = list(dic_init)[0]
-                p_ref = dic_init[graph_1]['sigma3']
+                graph_1 = list(DATA['graphs_initial'])[0]
+                p_ref = DATA['graphs_initial'][graph_1]['sigma3']
                 E50_ref = (
-                    dic_alt[f'{graph_1}_1']['E50']['sigma1']
-                    / dic_alt[f'{graph_1}_1']['E50']['epsilon']
+                    DATA['graphs_altered'][f"{graph_1}_1"]['E50']['sigma1']
+                    / DATA['graphs_altered'][f"{graph_1}_1"]['E50']['epsilon']
                 )
                 sigma3 = float_comma(values_5['-sigma3-'])
                 E50 = (
                     E50_ref
                     * (
                         (
-                            value_c * cos(radians(value_phi))
-                            + sigma3 * sin(radians(value_phi))
+                            DATA['value_c'] * cos(radians(DATA['value_phi']))
+                            + sigma3 * sin(radians(DATA['value_phi']))
                         )
                         / (
-                            value_c * cos(radians(value_phi))
-                            + p_ref * sin(radians(value_phi))
+                            DATA['value_c'] * cos(radians(DATA['value_phi']))
+                            + p_ref * sin(radians(DATA['value_phi']))
                         )
                     )
-                    ** m
+                    ** DATA['m']
                 )
                 Rf = float_comma(values_5['-Rf-'])
                 q_f = (
                     (
-                        value_c / tan(radians(value_phi)) + sigma3
+                        DATA['value_c'] / tan(radians(DATA['value_phi'])) + sigma3
                     )
-                    * 2 * sin(radians(value_phi))
-                    / (1 - sin(radians(value_phi)))
+                    * 2 * sin(radians(DATA['value_phi']))
+                    / (1 - sin(radians(DATA['value_phi'])))
                 )
                 q_a = q_f / Rf
                 E_i = 2 * E50 / (2 - Rf)
@@ -731,7 +840,7 @@ def add_graph(dic_cr, dic_alt, dic_init):
                 y_1.append(q_f)
                 x_1.append(x_2[-1])
 
-                dic_cr[values_5['-graph_name-']] = {
+                DATA['graphs_created'][values_5['-graph_name-']] = {
                     '1': {
                         'x': x_1,
                         'y': y_1
@@ -745,7 +854,8 @@ def add_graph(dic_cr, dic_alt, dic_init):
                     'E50': E50,
                     'q_f': q_f,
                     'q_a': q_a,
-                    'E_i': E_i
+                    'E_i': E_i,
+                    'm': DATA['m'],
                 }
                 break
 
@@ -754,8 +864,7 @@ def add_graph(dic_cr, dic_alt, dic_init):
     add_window.close()
 
 
-def configure_c_phi():
-    global value_phi, value_c
+def configure_c_phi(DATA):
     layout = [
         [
             sg.Column([
@@ -763,8 +872,8 @@ def configure_c_phi():
                 [sg.Text('c')]
             ]),
             sg.Column([
-                [sg.Input(default_text=value_phi, key='-phi-', size=(5, 1))],
-                [sg.Input(default_text=value_c, key='-c-', size=(5, 1))]
+                [sg.Input(default_text=DATA['value_phi'], key='-phi-', size=(5, 1))],
+                [sg.Input(default_text=DATA['value_c'], key='-c-', size=(5, 1))]
             ]),
             sg.Column([
                 [sg.Text('[°]')],
@@ -792,15 +901,15 @@ def configure_c_phi():
                 except ValueError:
                     sg.popup('Wrong \u03C6 or c')
                     continue
-                value_phi = float_comma(values_4['-phi-'])
-                value_c = float_comma(values_4['-c-'])
+                DATA['value_phi'] = float_comma(values_4['-phi-'])
+                DATA['value_c'] = float_comma(values_4['-c-'])
                 break
         if event_4 in [sg.WIN_CLOSED, 'Cancel']:
             break
     configuration.close()
 
 
-def save_load(w_type):
+def save_load(w_type, DATA):
     ''' Opens window to save or load save file'''
     if w_type == 'Save':
         layout = [
@@ -836,65 +945,55 @@ def save_load(w_type):
     while True:
         event_4, values_4 = save_load_window.read()
         if event_4 == 'Save data':
-            save_file(values_4['SaveAs'])
+            save_file(values_4['SaveAs'], DATA)
             break
         if event_4 == 'Load data':
-            load_file(values_4['Load'])
+            load_file(values_4['Load'], DATA)
             break
         if event_4 in [sg.WIN_CLOSED, 'Cancel']:
             break
     save_load_window.close()
 
-def save_file(file_name):
+
+def save_file(file_name, DATA):
     # Saves all data in save file
-    s_f = {
-        'graphs': graphs,
-        'graphs_altered': graphs_altered,
-        'value_phi': value_phi,
-        'value_c': value_c,
-        'm': m,
-        'graphs_created': graphs_created
-    }
     with open(file_name, 'w') as file:
-        dump(s_f, file, indent=4)
+        dump(DATA, file, indent=4)
 
 
-def load_file(file_name):
+def load_file(file_name, DATA):
     # Loads provided save file and inputs data in graphs and graphs_altered
     with open(file_name) as load_file:
         try:
-            data = load(load_file)
-            global graphs, graphs_altered, value_phi
-            global value_c, m, graphs_created
-            graphs = data['graphs']
-            graphs_altered = data['graphs_altered']
-            value_phi = data['value_phi']
-            value_c = data['value_c']
-            m = data['m']
-            graphs_created = data['graphs_created']
+            loaded_data = load(load_file)
+            for key in loaded_data.keys():
+                DATA[key] = loaded_data[key]
         except JSONDecodeError:
             sg.popup('File is not supported')
 
 
-# Dic storing all initial graphs
-graphs = {}
+# Main dictionary of program
+DATA = {
+    'graphs_initial': {},  # Dictionary storing all initial graphs
+    'graphs_altered': {},  # Dictionary storing all altered graphs
+    'graphs_created': {},  # Dictionary storing all user created graphs
+    'm_graphs': [],  # List with ywo names of graphs to calculate m
+    'value_phi': 0.0,  # Default value if phi
+    'value_c': 0.0,  # Default value of c
+    'm': 0.0,  # Default value of m
+    'p_ref': 0.0,  # Default value of p_ref
+}
 
-# Dic storing altered initial graphs
-graphs_altered = {}
-
-# Dic storing all user created graphs
-graphs_created = {}
-
-# Structure of dictionaries can be seen in save files
-
-# Values set by default, will be changed by user
-value_phi = 0.0
-value_c = 0.0
-m = 0.0
+# Visuals
+cb_on = '\u2611'  # Checkbox True
+cb_off = '\u2610'  # Checkbox False
 
 # Open pyplot window and draw based on dic graphs_altered
 figure, axes = pyplot.subplots()
-redraw_graph(graphs_altered, graphs_created, graphs)
+# redraw_graph(graphs_altered, graphs_created, graphs)
+redraw_graph(DATA)
+
+# Set dark theme
 axes.set_facecolor('#202020')
 figure.patch.set_facecolor('#202020')
 axes.spines['bottom'].set_color('#DED7CF')
@@ -904,10 +1003,11 @@ axes.spines['left'].set_color('#DED7CF')
 axes.tick_params('both', colors='#DED7CF')
 axes.yaxis.label.set_color('#DED7CF')
 axes.xaxis.label.set_color('#DED7CF')
+
 pyplot.ion()
 pyplot.show(block=False)
 
-# Set default theme
+# Set dark theme
 sg.theme_background_color('#202020')
 sg.theme_button_color(('#DED7CF', '#303030'))
 sg.theme_element_background_color('#202020')
@@ -918,7 +1018,7 @@ sg.theme_text_element_background_color('#202020')
 
 
 # Layout for main window
-layout = update_mainlayout(graphs, graphs_altered, graphs_created)
+layout = update_mainlayout(DATA)
 
 # Create the window
 window = sg.Window("Demo", layout, element_padding=1)
@@ -938,7 +1038,8 @@ while True:
     # Open plot window
     if event_1 == 'Plot':
         figure, axes = pyplot.subplots()
-        redraw_graph(graphs_altered, graphs_created, graphs)
+        # redraw_graph(graphs_altered, graphs_created, graphs)
+        redraw_graph(DATA)
         axes.set_facecolor('#202020')
         figure.patch.set_facecolor('#202020')
         axes.spines['bottom'].set_color('#DED7CF')
@@ -952,65 +1053,121 @@ while True:
         pyplot.show(block=False)
 
     # Opens graph configure (configure button is the same name as graph name)
-    if event_1 in graphs:
-        configure_window(event_1, graphs, graphs_altered)
-        split_graph(event_1, graphs, graphs_altered)
-        reopen()
+    if event_1[0] == 'configure_OG':
+        configure_window(event_1[1], DATA)
+        split_graph(event_1[1], DATA)
+        window, layout = reopen(window, layout, DATA)
 
     # Opens browse window if user presses Browse files button
     if event_1 == "Browse files":
-        if value_c == 0 and value_phi == 0 and len(graphs) == 1:
+        if DATA['value_c'] == 0 and DATA['value_phi'] == 0 and len(DATA['graphs_initial']) == 1:
             sg.popup('c and \u03C6 are not set')
             continue
-        browse_window()
-        reopen()
+        browse_window(DATA)
+        window, layout = reopen(window, layout, DATA)
 
-    # Disables graph sigma1 on checkbox
-    if event_1[-16:] == '_checkbox_sigma1':
-        graphs[event_1[:-16]]['checkbox_sigma1'] = int(values_1[event_1])
-        graphs_altered[f'{event_1[:-16]}_1']['checkbox_sigma1'] = int(
+    # Adds/removes m from m_graphs
+    if event_1[0] == 'checkbox_m':
+        if window[event_1].get() == cb_on:
+            values_1[event_1] = 0
+            window[event_1].update(cb_off)
+            window[event_1].set_tooltip('Disabled')
+        else:
+            values_1[event_1] = 1
+            window[event_1].update(cb_on)
+            window[event_1].set_tooltip('Enabled')
+        
+        if len(DATA['m_graphs']) == 2:
+            if values_1[event_1]:
+                old_graph = DATA['m_graphs'].pop(0)
+                window[(event_1[0], old_graph)].update(cb_off)
+                window[(event_1[0], old_graph)].set_tooltip('Disabled')
+                DATA['m_graphs'].append(event_1[1])
+
+                DATA['m'] = calculate_m(DATA)
+                window['-M_VALUE-'].update(f"m={DATA['m']}")
+                window['-P_REF_VALUE-'].update(f"p_ref={DATA['p_ref']} [kPa]")
+            else:
+                DATA['m_graphs'].remove(event_1[1])
+                DATA['m'] = 0.0
+                DATA['p_ref'] = 0.0
+                window['-M_VALUE-'].update(f"m={DATA['m']}")
+                window['-P_REF_VALUE-'].update(f"p_ref={DATA['p_ref']} [kPa]")
+        else:
+            if values_1[event_1]:
+                DATA['m_graphs'].append(event_1[1])
+
+                if len(DATA['m_graphs']) == 2:
+                    DATA['m'] = calculate_m(DATA)
+                    window['-M_VALUE-'].update(f"m={DATA['m']}")
+                    window['-P_REF_VALUE-'].update(f"p_ref={DATA['p_ref']} [kPa]")
+            else:
+                DATA['m_graphs'].remove(event_1[1])
+
+
+    # Disables/Enables graph sigma1 on checkbox
+    if event_1[0] == 'checkbox_sigma1':
+        if window[event_1].get() == cb_on:
+            values_1[event_1] = 0
+            window[event_1].update(cb_off)
+            window[event_1].set_tooltip('Disabled')
+        else:
+            values_1[event_1] = 1
+            window[event_1].update(cb_on)
+            window[event_1].set_tooltip('Enabled')
+
+        DATA['graphs_initial'][event_1[1]]['checkbox_sigma1'] = int(values_1[event_1])
+        DATA['graphs_altered'][f"{event_1[1]}_1"]['checkbox_sigma1'] = int(
             values_1[event_1]
         )
-        graphs_altered[f'{event_1[:-16]}_2']['checkbox_sigma1'] = int(
+        DATA['graphs_altered'][f"{event_1[1]}_2"]['checkbox_sigma1'] = int(
             values_1[event_1]
         )
 
-    # Disables graph E50 on checkbox
-    if event_1[-13:] == '_checkbox_E50':
-        graphs[event_1[:-13]]['checkbox_E50'] = int(values_1[event_1])
-        graphs_altered[f'{event_1[:-13]}_1']['checkbox_E50'] = int(
+    # Enables/Disables graph E50 on checkbox
+    if event_1[0] == 'checkbox_E50':
+        if window[event_1].get() == cb_on:
+            values_1[event_1] = 0
+            window[event_1].update(cb_off)
+            window[event_1].set_tooltip('Disabled')
+        else:
+            values_1[event_1] = 1
+            window[event_1].update(cb_on)
+            window[event_1].set_tooltip('Enabled')
+
+        DATA['graphs_initial'][event_1[1]]['checkbox_E50'] = int(values_1[event_1])
+        DATA['graphs_altered'][f"{event_1[1]}_1"]['checkbox_E50'] = int(
             values_1[event_1]
         )
 
     # Opens c and phi configure window
     if event_1 == '-c_and_phi-':
-        configure_c_phi()
-        reopen()
+        configure_c_phi(DATA)
+        window, layout = reopen(window, layout, DATA)
 
     # Opens add window
     if event_1 == 'Add':
-        add_graph(graphs_created, graphs_altered, graphs)
-        reopen()
+        if DATA['m']:
+            add_graph(DATA)
+            window, layout = reopen(window, layout, DATA)
+        else:
+            sg.popup('Select two opened graphs to calculate "m"')
 
     # Deletes created graph
-    if event_1[-7:] == '_remove':
-        del graphs_created[event_1[:-7]]
-        reopen()
-
-    # Saves file
-    if event_1 == 'SaveAs':
-        save_file(values_1['SaveAs'])
+    if event_1[0] == 'remove':
+        del DATA['graphs_created'][event_1[1]]
+        window, layout = reopen(window, layout, DATA)
 
     # Loads file
     if event_1 == 'Load':
-        # load_file(values_1['Load'])
-        save_load(event_1)
-        reopen()
+        save_load(event_1, DATA)
+        window, layout = reopen(window, layout, DATA)
 
     if event_1 == 'Save':
-        save_load(event_1)
+        save_load(event_1, DATA)
 
-    redraw_graph(graphs_altered, graphs_created, graphs)
+    # redraw_graph(graphs_altered, graphs_created, graphs)
+    redraw_graph(DATA)
     if process.memory_info().rss / 1024 ** 2 - memory_initial > 100:
         sg.popup('RAM usage is high. It is recommended to restart the program')
 
