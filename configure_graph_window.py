@@ -23,6 +23,8 @@ def configure_window(graph_key, DATA, axes, btnColor):
     ''' Opens window to configure each graph
     '''
 
+    changes = False
+
     # Create layout for the window
     layout = [
         [
@@ -145,6 +147,8 @@ def configure_window(graph_key, DATA, axes, btnColor):
                         graph_key, DATA,
                         float_comma(values_3['-sigma1_init-'])
                     )
+                changes = True
                 break
 
     configure.close()
+    return changes

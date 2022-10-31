@@ -2,7 +2,17 @@ import PySimpleGUI as sg
 from matplotlib import pyplot
 import os
 import psutil
-from utils import calculate_m, split_graph
+from utils import (
+    calculate_m,
+    split_graph,
+    read_folder,
+    calculate_gen_E50,
+    calculate_ln_data,
+    redraw_graph,
+    set_axes_theme,
+    set_sg_theme,
+    trendline
+)
 from browse_window import browse_window
 from add_graph_window import add_graph
 from configure_c_and_phi_window import configure_c_phi
@@ -12,70 +22,14 @@ from configure_graph_window import configure_window
 process = psutil.Process(os.getpid())
 
 
-def reopen(window, layout, DATA):
+def reopen(window, layout, DATA, bgColor):
     ''' Closes and opens main window '''
 
     location = window.CurrentLocation()
     window.close()
-    layout = create_mainlayout(DATA)
+    layout = create_tabs(DATA, bgColor, btnColor, txtColor)
     window = sg.Window("Demo", layout=layout, location=location, element_padding=1)
     return window, layout
-
-
-def redraw_graph(DATA, axes):
-    ''' Clears pyplot window and redraws all graphs in DATA '''
-
-    axes.clear()
-    for graph_key in DATA['graphs_altered']:
-        if DATA['graphs_altered'][graph_key]['checkbox_sigma1'] == 1:
-            # Makes graphs 'tail' gray
-            if graph_key[-2:] == '_2':
-                axes.plot(
-                    DATA['graphs_altered'][graph_key]['x'],
-                    DATA['graphs_altered'][graph_key]['y'],
-                    linestyle='--',
-                    color='gray'
-                )
-
-            else:
-                axes.plot(
-                    DATA['graphs_altered'][graph_key]['x'],
-                    DATA['graphs_altered'][graph_key]['y'],
-                    marker='.',
-                    color=DATA['graphs_altered'][graph_key]['color'],
-                    label=f"{graph_key[:-2]} (Rf={DATA['graphs_initial'][graph_key[:-2]]['Rf']})"
-                )
-        if graph_key[-2:] == '_1' and DATA['graphs_altered'][graph_key]['checkbox_E50'] == 1:
-            pyplot.axline(
-                (0, 0),
-                (
-                    DATA['graphs_altered'][graph_key]['E50']['epsilon'],
-                    DATA['graphs_altered'][graph_key]['E50']['sigma1']
-                ),
-                color=DATA['graphs_altered'][graph_key]['color'],
-                linestyle='--',
-                label=f"{graph_key[:-2]} E50"
-            )
-    for graph_key in DATA['graphs_created']:
-        axes.plot(
-            DATA['graphs_created'][graph_key]['1']['x'],
-            DATA['graphs_created'][graph_key]['1']['y'],
-            label=f"{graph_key} (q_a={round(DATA['graphs_created'][graph_key]['q_a'])} [kPa])",
-            linestyle='--'
-        )
-        axes.plot(
-            DATA['graphs_created'][graph_key]['2']['x'],
-            DATA['graphs_created'][graph_key]['2']['y'],
-            linestyle='--',
-            color='gray'
-        )
-
-    axes.set_xlabel('\u03B5')
-    axes.set_ylabel('\u03C31 [kPa]')
-    pyplot.axvline(0.15, linestyle='--', color='red')
-    pyplot.xlim(-0.01, 0.16)
-    axes.legend()
-    axes.grid(True)
 
 
 def create_column_layout(DATA, bgColor):
@@ -158,16 +112,7 @@ def create_column_layout(DATA, bgColor):
                 i,
                 element_justification='center',
                 background_color=bgColor
-            ) for i in [
-                lst[0],
-                lst[1],
-                lst[2],
-                lst[3],
-                lst[4],
-                lst[5],
-                lst[6],
-                lst[7],
-            ]
+            ) for i in lst
         ]
     ]
     return layout if len(DATA['graphs_initial']) else []
@@ -221,24 +166,29 @@ def create_custom_column_layout(DATA, bgColor):
                 i,
                 element_justification='center',
                 background_color=bgColor
-            ) for i in [
-                lst[0],
-                lst[1],
-                lst[2],
-                lst[3],
-                lst[4],
-                lst[5],
-                lst[6],
-            ]
+            ) for i in lst
         ]
     ]
     return layout if len(DATA['graphs_created']) else []
 
 
-def create_mainlayout(DATA):
+def create_mainlayout(DATA, bgColor):
     ''' Creates layout of main window
     '''
-    menu = [['&File', ['&Browse files', '---', '&Save', '&Load', '---', '&Exit']]]
+    menu = [
+        [
+            '&File',
+            [
+                'Browse f&iles',
+                'Browse f&older',
+                '---',
+                '&Save',
+                '&Load',
+                '---',
+                '&Exit'
+            ]
+        ]
+    ]
 
     information_layout = [
         sg.Frame('', layout=[
@@ -255,7 +205,7 @@ def create_mainlayout(DATA):
         sg.Push(),
         sg.Text(text=f"\u03C6={DATA['value_phi']} [°]"),
         sg.Text(text=f"c={DATA['value_c']} [kPa]"),
-        sg.Button('Configure', key='-c_and_phi-')
+        sg.Button('Configure', key=('-c_and_phi-', 'main'))
     ]
 
     graphs_layout_columns = create_column_layout(DATA, bgColor)
@@ -283,33 +233,107 @@ def create_mainlayout(DATA):
     return layout
 
 
-def axes_set_theme(axes, figure, bgColor, txtColor):
-    ''' Sets dark colors for plot window
+def create_gen_table(DATA, bgColor):
+    ''' Creates layout of columns to look like table
     '''
-    axes.set_facecolor(bgColor)
-    figure.patch.set_facecolor(bgColor)
-    axes.spines['bottom'].set_color(txtColor)
-    axes.spines['top'].set_color(txtColor)
-    axes.spines['right'].set_color(txtColor)
-    axes.spines['left'].set_color(txtColor)
-    axes.tick_params('both', colors=txtColor)
-    axes.yaxis.label.set_color(txtColor)
-    axes.xaxis.label.set_color(txtColor)
+
+    lst = [
+        [[sg.Text('Index', background_color=bgColor)]],  # index
+        [[sg.Text('\u03C33 [kPa]', background_color=bgColor)]],  # sigma_3
+        [[sg.Text('E50 [kPa]', background_color=bgColor)]],  # E50
+    ]
+
+    for i in range(len(DATA['gen']['graphs'])):
+        lst[0].append(
+            [sg.Text(
+                i + 1,
+                background_color=bgColor,
+                tooltip=DATA['gen']['graphs'][i]['filename'],
+            )]
+        )
+        lst[1].append(
+            [sg.Text(
+                DATA['gen']['graphs'][i]['sigma3'],
+                background_color=bgColor,
+            )]
+        )
+        lst[2].append(
+            [sg.Text(
+                f"{round(DATA['gen']['graphs'][i]['E50']):,}".replace(',', ' '),
+                background_color=bgColor
+            )]
+        )
+
+    layout = [
+        [
+            sg.Column(
+                i,
+                element_justification='center',
+                background_color=bgColor
+            ) for i in lst
+        ]
+    ]
+    return layout if len(DATA['gen']['graphs']) > 0 else []
 
 
-def set_sg_theme(theme: str):
-    ''' Returns colors for windows elements
-        depending on passed color theme
+def create_gen_layout(DATA, bgColor):
+    ''' Creates layout for generalization tab
+        of main window
     '''
-    if theme == 'dark':
-        bgColor = '#202020'
-        btnColor = '#303030'
-        txtColor = '#DED7CF'
-    elif theme == 'light':
-        bgColor = '#DFDFDF'
-        btnColor = '#CFCFCF'
-        txtColor = '#212830'
-    return bgColor, btnColor, txtColor
+
+    information_layout = [
+        sg.Frame('', layout=[
+            [sg.Text(
+                f"p_ref={DATA['gen']['p_ref']} [kPa]",
+            )],
+            [sg.Text(
+                f"y={round(DATA['gen']['m'], 3)}*x+{round(DATA['gen']['b'], 3)}",
+                text_color='#0e0',
+            )],
+            [sg.Text(
+                f"R\u00b2 = {round(DATA['gen']['R'] ** 2, 3)}"
+            )]
+        ]),
+        sg.Push(),
+        sg.Column([
+            [
+                sg.Text(text=f"\u03C6={DATA['value_phi']} [°]"),
+                sg.Text(text=f"c={DATA['value_c']} [kPa]"),
+                sg.Button('Configure', key=('-c_and_phi-', 'gen'))
+            ],
+            [sg.Push(), sg.Button('Show trendline', key='-TRENDLINE-')],
+        ]),
+    ]
+
+    graphs_layout = create_gen_table(DATA, bgColor)
+
+    layout = [
+        information_layout,
+        [sg.Text()],
+        [sg.Frame('Graphs in folder', layout=graphs_layout)],
+    ]
+
+    return layout
+
+
+def create_tabs(DATA, bgColor, btnColor, txtColor):
+    ''' Creates tabs layout for window
+    '''
+
+    tab_group = [
+        [sg.TabGroup(
+            [
+                [sg.Tab('Main', create_mainlayout(DATA, bgColor))],
+                [sg.Tab('Generalization', create_gen_layout(DATA, bgColor))]
+            ],
+            tab_background_color=bgColor,
+            selected_background_color=btnColor,
+            title_color=txtColor,
+            border_width=0,
+            tab_border_width=0,
+        )]
+    ]
+    return tab_group
 
 
 # Visuals
@@ -328,17 +352,31 @@ DATA = {
     'value_c': 0.0,  # Default value of c
     'm': 0.0,  # Default value of m
     'p_ref': 0.0,  # Default value of p_ref
+    'gen': {
+        'graphs': [],  # List for all graphs
+        'ln_data': {
+            'x': [],
+            'y': []
+        },
+        'm': 0.0,  # Default value of m of trendline
+        'p_ref': 0.0,  # Default value of p_ref
+        'b': 0.0,  # Default value of b of trendline
+        'R': 0.0,  # Default value of coefficient of correlation
+        'R_f': 0.9,  # Default value of R_f
+    }
 }
 
 # Open pyplot window and draw based on dic graphs_altered
+pyplot.ion()
 figure, axes = pyplot.subplots()
+figure.canvas.mpl_connect('close_event', exit)
+figure.show()
 
 # Set pyplot theme
-axes_set_theme(axes, figure, bgColor, txtColor)
+set_axes_theme(axes, figure, bgColor, txtColor)
 
-pyplot.ion()
-pyplot.show(block=False)
-redraw_graph(DATA, axes)
+
+redraw_graph(DATA, axes, figure)
 
 # Set PySimpleGUI theme
 sg.theme_background_color(bgColor)
@@ -350,7 +388,8 @@ sg.theme_text_color(txtColor)
 sg.theme_text_element_background_color(bgColor)
 
 # Layout for main window
-layout = create_mainlayout(DATA)
+# layout = create_mainlayout(DATA, bgColor)
+layout = create_tabs(DATA, bgColor, btnColor, txtColor)
 
 # Create the window
 window = sg.Window("Demo", layout, element_padding=1)
@@ -361,7 +400,8 @@ memory_initial = process.memory_info().rss / 1024 ** 2
 while True:
     event_1, values_1 = window.read()
 
-    print(event_1, values_1)
+    print('event:', event_1)
+    print('values:', values_1)
 
     # End program if user closes window or presses the OK button
     if event_1 == "Exit" or event_1 == sg.WIN_CLOSED:
@@ -369,17 +409,33 @@ while True:
 
     # Opens graph configure (configure button is the same name as graph name)
     if event_1[0] == 'configure_OG':
-        configure_window(event_1[1], DATA, axes, btnColor)
-        split_graph(event_1[1], DATA)
-        window, layout = reopen(window, layout, DATA)
+        if configure_window(event_1[1], DATA, axes, btnColor):
+            split_graph(event_1[1], DATA)
+            redraw_graph(DATA, axes, figure)
+            window, layout = reopen(window, layout, DATA, bgColor)
 
-    # Opens browse window if user presses Browse files button
+    # Opens browse window for files
     if event_1 == "Browse files":
-        if DATA['value_c'] == 0 and DATA['value_phi'] == 0 and len(DATA['graphs_initial']) == 1:
-            sg.popup('c and \u03C6 are not set')
-            continue
-        browse_window(DATA, btnColor)
-        window, layout = reopen(window, layout, DATA)
+        if browse_window(DATA, btnColor):
+            redraw_graph(DATA, axes, figure)
+            window, layout = reopen(window, layout, DATA, bgColor)
+
+    # Opens browse window for folder
+    if event_1 == 'Browse folder':
+        browse_folder = sg.popup_get_folder(
+            message='Choose folder containing csv files',
+            title='Browse folder',
+            no_window=True
+        )
+        if browse_folder:
+            read_folder(
+                browse_folder,
+                DATA
+            )
+            calculate_gen_E50(DATA)
+            if DATA['value_phi'] != 0 and DATA['value_c'] != 0:
+                calculate_ln_data(DATA)
+            window, layout = reopen(window, layout, DATA, bgColor)
 
     # Adds/removes m from m_graphs
     if event_1[0] == 'checkbox_m':
@@ -418,6 +474,7 @@ while True:
                     window['-P_REF_VALUE-'].update(f"p_ref={DATA['p_ref']} [kPa]")
             else:
                 DATA['m_graphs'].remove(event_1[1])
+        redraw_graph(DATA, axes, figure)
 
     # Disables/Enables graph sigma1 on checkbox
     if event_1[0] == 'checkbox_sigma1':
@@ -437,6 +494,7 @@ while True:
         DATA['graphs_altered'][f"{event_1[1]}_2"]['checkbox_sigma1'] = int(
             values_1[event_1]
         )
+        redraw_graph(DATA, axes, figure)
 
     # Enables/Disables graph E50 on checkbox
     if event_1[0] == 'checkbox_E50':
@@ -453,34 +511,65 @@ while True:
         DATA['graphs_altered'][f"{event_1[1]}_1"]['checkbox_E50'] = int(
             values_1[event_1]
         )
+        redraw_graph(DATA, axes, figure)
 
     # Opens c and phi configure window
-    if event_1 == '-c_and_phi-':
-        configure_c_phi(DATA)
-        window, layout = reopen(window, layout, DATA)
+    if event_1[0] == '-c_and_phi-':
+        if configure_c_phi(DATA):
+            if (
+                len(DATA['m_graphs']) == 2
+                and DATA['value_c'] != 0
+                and DATA['value_phi'] != 0
+            ):
+                DATA['m'] = calculate_m(DATA)
+
+            if (
+                DATA['value_c'] != 0
+                and DATA['value_phi'] != 0
+                and DATA['gen']['graphs'] != []
+            ):
+                calculate_ln_data(DATA)
+            redraw_graph(DATA, axes, figure)
+            window, layout = reopen(window, layout, DATA, bgColor)
+
+    # Plots trendline
+    if event_1 == '-TRENDLINE-':
+        if (
+            DATA['value_c'] == 0
+            and DATA['value_phi'] == 0
+        ):
+            sg.popup('C and \u03C6 are not set')
+            continue
+        elif DATA['gen']['ln_data']['x'] == []:
+            sg.popup('Add graphs with "File>Browse folder"')
+            continue
+        else:
+            trendline(DATA, bgColor, txtColor)
 
     # Opens add window
     if event_1 == 'Add':
         if DATA['m']:
-            add_graph(DATA)
-            window, layout = reopen(window, layout, DATA)
+            if add_graph(DATA):
+                window, layout = reopen(window, layout, DATA, bgColor)
+                redraw_graph(DATA, axes, figure)
         else:
             sg.popup('Select two opened graphs to calculate "m"')
 
     # Deletes created graph
     if event_1[0] == 'remove':
         del DATA['graphs_created'][event_1[1]]
-        window, layout = reopen(window, layout, DATA)
+        window, layout = reopen(window, layout, DATA, bgColor)
+        redraw_graph(DATA, axes, figure)
 
     # Loads file
     if event_1 == 'Load':
-        save_load(event_1, DATA)
-        window, layout = reopen(window, layout, DATA)
+        if save_load(event_1, DATA):
+            window, layout = reopen(window, layout, DATA, bgColor)
+            redraw_graph(DATA, axes, figure)
 
     if event_1 == 'Save':
         save_load(event_1, DATA)
 
-    redraw_graph(DATA, axes)
     if process.memory_info().rss / 1024 ** 2 - memory_initial > 100:
         sg.popup('RAM usage is high. It is recommended to restart the program')
 

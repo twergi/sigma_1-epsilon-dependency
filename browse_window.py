@@ -12,6 +12,8 @@ def browse_window(DATA, btnColor):
     ''' Create window where new graphs are imported
     '''
 
+    changes = False
+
     # Create layout for window
     layout = [
         [
@@ -134,6 +136,7 @@ def browse_window(DATA, btnColor):
                 )
 
                 split_graph(values_2['-graphname-'], DATA)
+                changes = True
                 break
 
         # Closes window when window is closed or user presses Cancel button
@@ -142,3 +145,4 @@ def browse_window(DATA, btnColor):
 
     # Closes window
     browse_files.close()
+    return changes

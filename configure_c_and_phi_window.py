@@ -5,6 +5,9 @@ from utils import float_comma
 def configure_c_phi(DATA):
     ''' Open window to configure c and phi
     '''
+
+    changes = False
+
     layout = [
         [
             sg.Column([
@@ -43,7 +46,9 @@ def configure_c_phi(DATA):
                     continue
                 DATA['value_phi'] = float_comma(values_4['-phi-'])
                 DATA['value_c'] = float_comma(values_4['-c-'])
+                changes = True
                 break
         if event_4 in [sg.WIN_CLOSED, 'Cancel']:
             break
     configuration.close()
+    return changes

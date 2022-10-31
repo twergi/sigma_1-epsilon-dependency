@@ -8,6 +8,9 @@ def add_graph(DATA):
     ''' Opens create custom graph window
         and adds custom graphs to DATA
     '''
+
+    changes = False
+
     layout = [
         [sg.HSeparator(), sg.Text(f"m = {DATA['m']}"), sg.HSeparator()],
         [
@@ -113,8 +116,10 @@ def add_graph(DATA):
                     'E_i': E_i,
                     'm': DATA['m'],
                 }
+                changes = True
                 break
 
         if event_5 == 'Cancel' or event_5 == sg.WIN_CLOSED:
             break
     add_window.close()
+    return changes

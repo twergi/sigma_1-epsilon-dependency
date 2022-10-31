@@ -5,6 +5,8 @@ from json import dump, load, JSONDecodeError
 def save_load(w_type, DATA):
     ''' Opens window to save or load save file'''
 
+    changes = False
+
     # Set layout depending on window type parameter
     if w_type == 'Save':
         layout = [
@@ -41,13 +43,16 @@ def save_load(w_type, DATA):
         event_4, values_4 = save_load_window.read()
         if event_4 == 'Save data':
             save_file(values_4['SaveAs'], DATA)
+            changes = True
             break
         if event_4 == 'Load data':
             load_file(values_4['Load'], DATA)
+            changes = True
             break
         if event_4 in [sg.WIN_CLOSED, 'Cancel']:
             break
     save_load_window.close()
+    return changes
 
 
 def save_file(file_name, DATA):
