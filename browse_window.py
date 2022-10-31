@@ -34,7 +34,7 @@ def browse_window(DATA, btnColor):
             [[
                 sg.Text('Enter R_f'),
                 sg.Input(
-                    default_text=0.9,
+                    default_text=DATA['R_f'],
                     key='-R_f-',
                     size=(10, 1)
                 )

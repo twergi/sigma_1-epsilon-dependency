@@ -18,6 +18,8 @@ from add_graph_window import add_graph
 from configure_c_and_phi_window import configure_c_phi
 from save_load import save_load
 from configure_graph_window import configure_window
+from gen_calculate_E50 import calculate_E50_window
+from edit_defaults_window import edit_defaults_window
 
 process = psutil.Process(os.getpid())
 
@@ -191,6 +193,12 @@ def create_mainlayout(DATA, bgColor):
                 '&Load',
                 '---',
                 '&Exit'
+            ],
+        ],
+        [
+            'Edit',
+            [
+                'Edit defaults::-CONFIGURE_DEFAULTS-',
             ]
         ]
     ]
@@ -312,7 +320,11 @@ def create_gen_layout(DATA, bgColor):
                 sg.Text(text=f"c={DATA['value_c']} [kPa]"),
                 sg.Button('Configure', key=('-c_and_phi-', 'gen'))
             ],
-            [sg.Push(), sg.Button('Show trendline', key='-TRENDLINE-')],
+            [
+                sg.Push(),
+                sg.Button('Calculate E50', key='-GEN_CALC_E50-'),
+                sg.Button('Show trendline', key='-TRENDLINE-')
+            ],
         ]),
     ]
 
@@ -368,6 +380,7 @@ DATA = {
     'value_c': 0.0,  # Default value of c
     'm': 0.0,  # Default value of m
     'p_ref': 0.0,  # Default value of p_ref
+    'R_f': 0.9,  # Default value of R_f
     'gen': {
         'graphs': [],  # List for all graphs
         'ln_data': {
@@ -378,7 +391,6 @@ DATA = {
         'p_ref': 0.0,  # Default value of p_ref
         'b': 0.0,  # Default value of b of trendline
         'R': 0.0,  # Default value of coefficient of correlation
-        'R_f': 0.9,  # Default value of R_f
     }
 }
 
@@ -535,6 +547,19 @@ while True:
         )
         redraw_graph(DATA, axes, figure)
 
+    # Opens window to configure default values
+    if event_1 == 'Edit defaults::-CONFIGURE_DEFAULTS-':
+        if edit_defaults_window(DATA):
+            if DATA['gen']['graphs'] != []:
+                calculate_gen_E50(DATA)
+            if (
+                DATA['value_c'] != 0
+                and DATA['value_phi'] != 0
+                and DATA['gen']['graphs'] != []
+            ):
+                calculate_ln_data(DATA)
+            window, layout = reopen(window, layout, DATA, bgColor)
+
     # Opens c and phi configure window
     if event_1[0] == '-c_and_phi-':
         if configure_c_phi(DATA):
@@ -567,6 +592,15 @@ while True:
             continue
         else:
             trendline(DATA, bgColor, txtColor)
+
+    # Opens window to calculate E50 by y=mx+b
+    if event_1 == '-GEN_CALC_E50-':
+        if DATA['gen']['m']:
+            calculate_E50_window(DATA)
+            continue
+        else:
+            sg.popup('m has to be defined')
+            continue
 
     # Opens add window
     if event_1 == 'Add':

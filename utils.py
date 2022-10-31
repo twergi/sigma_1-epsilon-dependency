@@ -131,7 +131,7 @@ def calculate_gen_E50(DATA):
     ''' Calculates E50 for every graph in
         DATA gen graphs
     '''
-    R_f = DATA['gen']['R_f']
+    R_f = DATA['R_f']
     for i in range(len(DATA['gen']['graphs'])):
         y_list = DATA['gen']['graphs'][i]['y']
         x_list = DATA['gen']['graphs'][i]['x']
