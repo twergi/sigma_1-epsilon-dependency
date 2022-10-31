@@ -28,7 +28,12 @@ def reopen(window, layout, DATA, bgColor):
     location = window.CurrentLocation()
     window.close()
     layout = create_tabs(DATA, bgColor, btnColor, txtColor)
-    window = sg.Window("Demo", layout=layout, location=location, element_padding=1)
+    window = sg.Window(
+        "Demo",
+        layout=layout, 
+        location=location,
+        element_padding=1
+    )
     return window, layout
 
 
@@ -218,7 +223,7 @@ def create_mainlayout(DATA, bgColor):
         )],
         information_layout,
         [sg.Text()],
-        [sg.Frame('Opened graphs', layout=graphs_layout_columns)],
+        [sg.Frame('Opened graphs', layout=graphs_layout_columns, expand_y=True)],
     ]
 
     if len(DATA['graphs_initial']) >= 2:
@@ -227,7 +232,7 @@ def create_mainlayout(DATA, bgColor):
             [sg.Push(), sg.Button(button_text='Add')]
         )
         layout.append(
-            [sg.Frame('Custom graphs', layout=custom_graphs_layout)]
+            [sg.Frame('Custom graphs', layout=custom_graphs_layout, expand_x=True)]
         )
 
     return layout
@@ -242,8 +247,8 @@ def create_gen_table(DATA, bgColor):
         [[sg.Text('\u03C33 [kPa]', background_color=bgColor)]],  # sigma_3
         [[sg.Text('E50 [kPa]', background_color=bgColor)]],  # E50
     ]
-
-    for i in range(len(DATA['gen']['graphs'])):
+    graphs_len = len(DATA['gen']['graphs'])
+    for i in range(graphs_len):
         lst[0].append(
             [sg.Text(
                 i + 1,
@@ -264,15 +269,21 @@ def create_gen_table(DATA, bgColor):
             )]
         )
 
-    layout = [
+    layout = [[sg.Column(
         [
-            sg.Column(
-                i,
-                element_justification='center',
-                background_color=bgColor
-            ) for i in lst
-        ]
-    ]
+            [
+                sg.Column(
+                    i,
+                    element_justification='center',
+                    background_color=bgColor
+                ) for i in lst
+            ]
+        ],
+        scrollable=True if graphs_len >= 15 else False,
+        vertical_scroll_only=True,
+        expand_x=True,
+        expand_y=True
+    )]]
     return layout if len(DATA['gen']['graphs']) > 0 else []
 
 
@@ -310,7 +321,12 @@ def create_gen_layout(DATA, bgColor):
     layout = [
         information_layout,
         [sg.Text()],
-        [sg.Frame('Graphs in folder', layout=graphs_layout)],
+        [sg.Frame(
+            'Graphs in folder',
+            layout=graphs_layout,
+            expand_x=True,
+            expand_y=True
+        )],
     ]
 
     return layout
@@ -417,6 +433,12 @@ while True:
     # Opens browse window for files
     if event_1 == "Browse files":
         if browse_window(DATA, btnColor):
+            if (
+                DATA['value_c'] != 0
+                and DATA['value_phi'] != 0
+                and DATA['gen']['graphs'] != []
+            ):
+                calculate_ln_data(DATA)
             redraw_graph(DATA, axes, figure)
             window, layout = reopen(window, layout, DATA, bgColor)
 
