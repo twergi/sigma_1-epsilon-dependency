@@ -2,7 +2,7 @@ import PySimpleGUI as sg
 from matplotlib import pyplot
 import os
 import psutil
-from utils import (
+from modules.utils import (
     calculate_m,
     split_graph,
     read_folder,
@@ -13,13 +13,13 @@ from utils import (
     set_sg_theme,
     trendline
 )
-from browse_window import browse_window
-from add_graph_window import add_graph
-from configure_c_and_phi_window import configure_c_phi
-from save_load import save_load
-from configure_graph_window import configure_window
-from gen_calculate_E50 import calculate_E50_window
-from edit_defaults_window import edit_defaults_window
+from modules.browse_window import browse_window
+from modules.add_graph_window import add_graph
+from modules.configure_c_and_phi_window import configure_c_phi
+from modules.save_load import save_load
+from modules.configure_graph_window import configure_window, configure_cr_window
+from modules.gen_calculate_E50 import calculate_E50_window
+from modules.edit_defaults_window import edit_defaults_window
 
 process = psutil.Process(os.getpid())
 
@@ -136,6 +136,8 @@ def create_custom_column_layout(DATA, bgColor):
         [[sg.Text('q_f [kPa]', background_color=bgColor)]],  # q_f
         [[sg.Text('q_a [kPa]', background_color=bgColor)]],  # q_a
         [[sg.Text('m', background_color=bgColor)]],  # m
+        [[sg.Text('Display E50', background_color=bgColor)]],  # Display E50
+        [[sg.Text('Configure', background_color=bgColor)]],  # Configure
         [[sg.Text('Remove', background_color=bgColor)]],  # remove
     ]
 
@@ -160,6 +162,22 @@ def create_custom_column_layout(DATA, bgColor):
         )
         lst[6].append(
             [sg.Text(
+                cb_on if DATA['graphs_created'][i]['checkbox_E50'] else cb_off,
+                key=('checkbox_E50CR', i),
+                enable_events=True,
+                background_color=bgColor,
+                tooltip='Enabled' if DATA['graphs_created'][i]['checkbox_E50'] else 'Disabled')]
+        )
+        lst[7].append(
+            [sg.Text(
+                text='\u2699',
+                key=('-CONFIGURE_CG-', i),
+                enable_events=True,
+                background_color=bgColor,
+                tooltip='Open configuration')]
+        )
+        lst[8].append(
+            [sg.Text(
                 '\u274C',
                 key=('remove', i),
                 enable_events=True,
@@ -179,7 +197,7 @@ def create_custom_column_layout(DATA, bgColor):
     return layout if len(DATA['graphs_created']) else []
 
 
-def create_mainlayout(DATA, bgColor):
+def create_mainlayout(DATA, bgColor, txtColor):
     ''' Creates layout of main window
     '''
     menu = [
@@ -216,9 +234,22 @@ def create_mainlayout(DATA, bgColor):
             )]
         ]),
         sg.Push(),
-        sg.Text(text=f"\u03C6={DATA['value_phi']} [°]"),
-        sg.Text(text=f"c={DATA['value_c']} [kPa]"),
-        sg.Button('Configure', key=('-c_and_phi-', 'main'))
+        sg.Column(
+            [
+                [
+                    sg.Push(),
+                    sg.Button(
+                        button_text=('Dark' if dark_theme else 'Light'),
+                        key=('-CHANGE_THEME-', 'main')
+                    )
+                ],
+                [
+                    sg.Text(text=f"\u03C6={DATA['value_phi']} [°]"),
+                    sg.Text(text=f"c={DATA['value_c']} [kPa]"),
+                    sg.Button('Configure', key=('-c_and_phi-', 'main'))
+                ]
+            ]
+        )
     ]
 
     graphs_layout_columns = create_column_layout(DATA, bgColor)
@@ -231,7 +262,7 @@ def create_mainlayout(DATA, bgColor):
         )],
         information_layout,
         [sg.Text()],
-        [sg.Frame('Opened graphs', layout=graphs_layout_columns, expand_y=True)],
+        [sg.Frame('Opened graphs', layout=graphs_layout_columns, expand_y=True, title_color=txtColor)],
     ]
 
     if len(DATA['graphs_initial']) >= 2:
@@ -240,7 +271,7 @@ def create_mainlayout(DATA, bgColor):
             [sg.Push(), sg.Button(button_text='Add')]
         )
         layout.append(
-            [sg.Frame('Custom graphs', layout=custom_graphs_layout, expand_x=True)]
+            [sg.Frame('Custom graphs', layout=custom_graphs_layout, expand_x=True, title_color=txtColor)]
         )
 
     return layout
@@ -295,7 +326,7 @@ def create_gen_table(DATA, bgColor):
     return layout if len(DATA['gen']['graphs']) > 0 else []
 
 
-def create_gen_layout(DATA, bgColor):
+def create_gen_layout(DATA, bgColor, txtColor):
     ''' Creates layout for generalization tab
         of main window
     '''
@@ -315,6 +346,13 @@ def create_gen_layout(DATA, bgColor):
         ]),
         sg.Push(),
         sg.Column([
+            [
+                sg.Push(),
+                sg.Button(
+                    button_text=('Dark' if dark_theme else 'Light'),
+                    key=('-CHANGE_THEME-', 'gen')
+                )
+            ],
             [
                 sg.Text(text=f"\u03C6={DATA['value_phi']} [°]"),
                 sg.Text(text=f"c={DATA['value_c']} [kPa]"),
@@ -337,7 +375,8 @@ def create_gen_layout(DATA, bgColor):
             'Graphs in folder',
             layout=graphs_layout,
             expand_x=True,
-            expand_y=True
+            expand_y=True,
+            title_color=txtColor
         )],
     ]
 
@@ -351,8 +390,8 @@ def create_tabs(DATA, bgColor, btnColor, txtColor):
     tab_group = [
         [sg.TabGroup(
             [
-                [sg.Tab('Main', create_mainlayout(DATA, bgColor))],
-                [sg.Tab('Generalization', create_gen_layout(DATA, bgColor))]
+                [sg.Tab('Main', create_mainlayout(DATA, bgColor, txtColor), title_color=txtColor)],
+                [sg.Tab('Generalization', create_gen_layout(DATA, bgColor, txtColor), title_color=txtColor)]
             ],
             tab_background_color=bgColor,
             selected_background_color=btnColor,
@@ -365,9 +404,10 @@ def create_tabs(DATA, bgColor, btnColor, txtColor):
 
 
 # Visuals
+dark_theme = True
 cb_on = '\u2611'  # Checkbox True
 cb_off = '\u2610'  # Checkbox False
-bgColor, btnColor, txtColor = set_sg_theme('dark')  # Sets colors for windows elements
+bgColor, btnColor, txtColor = set_sg_theme('dark' if dark_theme else 'light')  # Sets colors for windows elements
 
 
 # Main dictionary of program
@@ -403,7 +443,6 @@ figure.show()
 # Set pyplot theme
 set_axes_theme(axes, figure, bgColor, txtColor)
 
-
 redraw_graph(DATA, axes, figure)
 
 # Set PySimpleGUI theme
@@ -416,7 +455,6 @@ sg.theme_text_color(txtColor)
 sg.theme_text_element_background_color(bgColor)
 
 # Layout for main window
-# layout = create_mainlayout(DATA, bgColor)
 layout = create_tabs(DATA, bgColor, btnColor, txtColor)
 
 # Create the window
@@ -439,6 +477,13 @@ while True:
     if event_1[0] == 'configure_OG':
         if configure_window(event_1[1], DATA, axes, btnColor):
             split_graph(event_1[1], DATA)
+            if len(DATA['m_graphs']) == 2:
+                DATA['m'] = calculate_m(DATA)
+            redraw_graph(DATA, axes, figure)
+            window, layout = reopen(window, layout, DATA, bgColor)
+
+    if event_1[0] == '-CONFIGURE_CG-':
+        if configure_cr_window(event_1[1], DATA, btnColor):
             redraw_graph(DATA, axes, figure)
             window, layout = reopen(window, layout, DATA, bgColor)
 
@@ -547,6 +592,12 @@ while True:
         )
         redraw_graph(DATA, axes, figure)
 
+    if event_1[0] == 'checkbox_E50CR':
+        flag = DATA['graphs_created'][event_1[1]]['checkbox_E50']
+        DATA['graphs_created'][event_1[1]]['checkbox_E50'] = not flag
+        redraw_graph(DATA, axes, figure)
+        window[event_1].update(cb_off if flag else cb_on)
+
     # Opens window to configure default values
     if event_1 == 'Edit defaults::-CONFIGURE_DEFAULTS-':
         if edit_defaults_window(DATA):
@@ -578,6 +629,21 @@ while True:
                 calculate_ln_data(DATA)
             redraw_graph(DATA, axes, figure)
             window, layout = reopen(window, layout, DATA, bgColor)
+
+    if event_1[0] == '-CHANGE_THEME-':
+        dark_theme = not dark_theme
+        bgColor, btnColor, txtColor = set_sg_theme('dark' if dark_theme else 'light')
+        set_axes_theme(axes, figure, bgColor, txtColor)
+
+        redraw_graph(DATA, axes, figure)
+        sg.theme_background_color(bgColor)
+        sg.theme_button_color((txtColor, btnColor))
+        sg.theme_element_background_color(bgColor)
+        sg.theme_input_background_color(btnColor)
+        sg.theme_input_text_color(txtColor)
+        sg.theme_text_color(txtColor)
+        sg.theme_text_element_background_color(bgColor)
+        window, layout = reopen(window, layout, DATA, bgColor)
 
     # Plots trendline
     if event_1 == '-TRENDLINE-':
